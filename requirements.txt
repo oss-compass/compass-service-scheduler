@@ -1,0 +1,8 @@
+celery_director==0.6.0
+colorlog==4.1.0
+director==1.2.0
+grimoire_open_metrics_model.egg==info
+PyYAML==6.0
+sirmordred==0.3.1
+sirmordred.egg==info
+tldextract==3.3.1
