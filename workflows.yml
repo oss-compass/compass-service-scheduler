@@ -1,0 +1,16 @@
+---
+insight.ETL_V1:
+  tasks:
+    - etl_v1.extract
+    - etl_v1.initialize
+    - etl_v1.setup
+    - etl_v1.raw
+    - etl_v1.enrich
+    - etl_v1.identities
+    - etl_v1.panels
+    - GROUP_1:
+        type: group
+        tasks:
+          - etl_v1.metrics.activity
+          - etl_v1.metrics.community
+  queue: analyze_queue_v1
