@@ -226,6 +226,7 @@ def setup(*args, **kwargs):
     elif domain_name == 'github':
         backends.extend(['github:issue', 'github:pull', 'github:repo'])
         api_token = config.get('GITHUB_API_TOKEN')
+        proxy = config.get('GITHUB_PROXY')
         input_enrich_issues_index = 'github_enriched'
         input_enrich_pulls_index = 'github-pull_enriched'
         setup['github:issue'] = {
@@ -233,6 +234,7 @@ def setup(*args, **kwargs):
             'enriched_index': 'github_enriched',
             'category': 'issue',
             'api-token': api_token,
+            'proxy': proxy,
             'sleep-for-rate': 'true',
             'no-archive': 'true',
             'studies': '[enrich_onion:github]'
@@ -250,6 +252,7 @@ def setup(*args, **kwargs):
             'enriched_index': 'github-pull_enriched',
             'category': 'pull_request',
             'api-token': api_token,
+            'proxy': proxy,
             'sleep-for-rate': 'true',
             'no-archive': 'true'
         }
@@ -259,6 +262,7 @@ def setup(*args, **kwargs):
             'enriched_index': 'gitee_repo-enriched',
             'category': 'repository',
             'api-token': api_token,
+            'proxy': proxy,
             'sleep-for-rate': 'true',
             'no-archive': 'true'
         }
@@ -274,6 +278,7 @@ def setup(*args, **kwargs):
     params['project_issues_index'] = input_enrich_issues_index
     params['project_pulls_index'] = input_enrich_pulls_index
     params['project_git_index'] = 'git_demo_enriched'
+    params['project_release_index'] = 'repo_release_enriched'
     return params
 
 @task(name="etl_v1.raw", queue="analyze_queue_v1", autoretry_for=(Exception,), retry_kwargs={'max_retries': 5})
@@ -371,6 +376,7 @@ def metrics_activity(*args, **kwargs):
         metrics_cfg['params'] =   {
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
+            'release_index': params['project_release_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
@@ -398,6 +404,7 @@ def metrics_community(*args, **kwargs):
         metrics_cfg['params'] =   {
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
+            'release_index': params['project_release_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
