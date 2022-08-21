@@ -14,7 +14,7 @@ compass-service-scheduler is a task scheduling service based on [celery-director
 
 Configuration is managed by [environs](https://github.com/sloria/environs).
 
-For details, please refer to the file [.env](./env)
+For details, please refer to the file [.env](./.env)
 
 ## Install
 
