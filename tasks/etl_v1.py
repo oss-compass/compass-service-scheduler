@@ -17,7 +17,7 @@ from datetime import datetime
 
 from sirmordred.utils.micro import micro_mordred
 
-from open_metrics_model.metrics_model import ActivityMetricsModel, CommunitySupportMetricsModel
+from compass_metrics_model.metrics_model import ActivityMetricsModel, CommunitySupportMetricsModel, CodeQualityGuaranteeMetricsModel
 
 DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
@@ -102,6 +102,7 @@ def extract(*args, **kwargs):
     params['debug'] = bool(payload.get('debug'))
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
+    params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     if not (params['domain'] in SUPPORT_DOMAINS):
         raise Exception(f"no support project from {payload['project_url']}")
     return params
@@ -129,12 +130,16 @@ def initialize(*args, **kwargs):
         project_data[key]['git'] = [f"{url}.git"]
         project_data[key][domain_name] = [url]
         project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
         project_data[key][f"{domain_name}:repo"] = [url]
     elif domain_name == 'github':
         project_data[key] = {}
         project_data[key]['git'] = [f"{url}.git"]
         project_data[key][f"{domain_name}:issue"] = [url]
         project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
         project_data[key][f"{domain_name}:repo"] = [url]
 
     project_data_path = join(configs_dir, JSON_NAME)
@@ -178,25 +183,31 @@ def setup(*args, **kwargs):
     domain_name = params['domain_name']
     input_enrich_issues_index = 'github_enriched'
     input_enrich_pulls_index = 'github-pull_enriched'
+    input_enrich_pulls2_index = 'github2-pull_enriched'
+
     if domain_name == 'gitee':
-        backends.extend(['gitee', 'gitee:pull', 'gitee:repo'])
+        backends.extend(['gitee', 'gitee:pull', 'gitee:repo', 'gitee2:issue', 'gitee2:pull'])
         input_enrich_issues_index = 'gitee_issues-enriched'
         input_enrich_pulls_index = 'gitee-prs_enriched'
+        input_enrich_pulls2_index = 'gitee2-pull_enriched'
         api_token = config.get('GITEE_API_TOKEN')
+
         setup['gitee'] = {
             'raw_index': 'gitee_issues-raw',
             'enriched_index': 'gitee_issues-enriched',
             'category': 'issue',
             'api-token': api_token,
             'sleep-for-rate': 'true',
-            'no-archive': 'true',
-            'studies': '[enrich_onion:gitee-issue]'
+            'no-archive': 'true'
         }
 
-        setup['enrich_onion:gitee-issue'] = {
-            'in_index': 'gitee_issues-enriched',
-            'out_index': 'gitee_issues_onion-enriched',
-            'data_source': 'gitee_issues'
+        setup['gitee2:issue'] = {
+            'raw_index': 'gitee2-issues_raw',
+            'enriched_index': 'gitee2-issues_enriched',
+            'category': 'issue',
+            'api-token': api_token,
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
         }
 
         setup['gitee:pull'] = {
@@ -205,14 +216,16 @@ def setup(*args, **kwargs):
             'category': 'pull_request',
             'api-token': api_token,
             'sleep-for-rate': 'true',
-            'no-archive': 'true',
-            'studies': '[enrich_onion:gitee-pull]'
+            'no-archive': 'true'
         }
 
-        setup['enrich_onion:gitee-pull'] = {
-            'in_index': 'gitee_pulls-enriched',
-            'out_index': 'gitee_pulls_onion-enriched',
-            'data_source': 'gitee_pulls'
+        setup['gitee2:pull'] = {
+            'raw_index': 'gitee2-pulls_raw',
+            'enriched_index': 'gitee2-pulls_enriched',
+            'category': 'pull_request',
+            'api-token': api_token,
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
         }
 
         setup['gitee:repo'] = {
@@ -224,11 +237,13 @@ def setup(*args, **kwargs):
             'no-archive': 'true'
         }
     elif domain_name == 'github':
-        backends.extend(['github:issue', 'github:pull', 'github:repo'])
+        backends.extend(['github:issue', 'github:pull', 'github:repo', 'github2:issue', 'github2:pull'])
         api_token = config.get('GITHUB_API_TOKEN')
         proxy = config.get('GITHUB_PROXY')
         input_enrich_issues_index = 'github_enriched'
         input_enrich_pulls_index = 'github-pull_enriched'
+        input_enrich_pulls2_index = 'github2-pull_enriched'
+
         setup['github:issue'] = {
             'raw_index': 'github_raw',
             'enriched_index': 'github_enriched',
@@ -236,20 +251,32 @@ def setup(*args, **kwargs):
             'api-token': api_token,
             'proxy': proxy,
             'sleep-for-rate': 'true',
-            'no-archive': 'true',
-            'studies': '[enrich_onion:github]'
+            'no-archive': 'true'
         }
 
-        setup['enrich_onion:github'] = {
-            'in_index_iss': 'github_enriched',
-            'in_index_prs': 'github-pull_enriched',
-            'out_index_iss': 'github-issues-onion_enriched',
-            'out_index_prs': 'github-prs-onion_enriched'
+        setup['github2:issue'] = {
+            'raw_index': 'github2-issues_raw',
+            'enriched_index': 'github2-issues_enriched',
+            'category': 'issue',
+            'api-token': api_token,
+            'proxy': proxy,
+            'sleep-for-rate': 'true',
+            'no-archive': 'true',
         }
 
         setup['github:pull'] = {
             'raw_index': 'github-pull_raw',
             'enriched_index': 'github-pull_enriched',
+            'category': 'pull_request',
+            'api-token': api_token,
+            'proxy': proxy,
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
+        }
+
+        setup['github2:pull'] = {
+            'raw_index': 'github2-pull_raw',
+            'enriched_index': 'github2-pull_enriched',
             'category': 'pull_request',
             'api-token': api_token,
             'proxy': proxy,
@@ -277,6 +304,7 @@ def setup(*args, **kwargs):
     params['project_backends'] = backends
     params['project_issues_index'] = input_enrich_issues_index
     params['project_pulls_index'] = input_enrich_pulls_index
+    params['project_pulls2_index'] = input_enrich_pulls2_index
     params['project_git_index'] = 'git_demo_enriched'
     params['project_release_index'] = 'repo_release_enriched'
     return params
@@ -404,7 +432,6 @@ def metrics_community(*args, **kwargs):
         metrics_cfg['params'] =   {
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
-            'release_index': params['project_release_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
@@ -419,5 +446,34 @@ def metrics_community(*args, **kwargs):
         params['metrics_community_finished_at'] = datetime.now()
     else:
         params['metrics_community_finished_at'] = 'skipped'
+    return params
+
+@task(name="etl_v1.metrics.codequality", queue="analyze_queue_v1", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_codequality(*args, **kwargs):
+    params = args[0]
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_codequality_started_at'] = datetime.now()
+    if params['metrics_codequality']:
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] =   {
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'json_file': params['metrics_data_path'],
+            'git_index': params['project_git_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': config.get('METRICS_END_DATE'),
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
+            'community': config.get('METRICS_COMMUNITY'),
+            'level': config.get('METRICS_LEVEL'),
+            'company': None,
+            'pr_comments_index': params['project_pulls2_index']
+        }
+        params['metrics_codequality_params'] = metrics_cfg
+        model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
+        model_codequality.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_codequality_finished_at'] = datetime.now()
+    else:
+        params['metrics_codequality_finished_at'] = 'skipped'
     return params
 
