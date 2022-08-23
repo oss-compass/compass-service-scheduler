@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from os.path import join, exists, abspath
 from datetime import datetime
 
+from . import config_logging
 from sirmordred.utils.micro import micro_mordred
 
 from compass_metrics_model.metrics_model import ActivityMetricsModel, CommunitySupportMetricsModel, CodeQualityGuaranteeMetricsModel
@@ -112,7 +113,6 @@ def initialize(*args, **kwargs):
         json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
 
     config_logging(params['debug'], logs_dir, False)
-    logging.getLogger('elasticsearch').setLevel(logging.WARNING)
 
     params['project_configs_dir'] = configs_dir
     params['project_logs_dir'] = logs_dir
