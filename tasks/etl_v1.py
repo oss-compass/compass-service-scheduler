@@ -6,10 +6,8 @@ import hashlib
 import json
 import yaml
 import configparser
-import traceback
-import logging
+
 import tldextract
-import colorlog
 
 from urllib.parse import urlparse
 from os.path import join, exists, abspath
@@ -25,48 +23,6 @@ CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com']
 
-DEBUG_LOG_FORMAT = "[%(asctime)s - %(name)s - %(levelname)s] - %(message)s"
-INFO_LOG_FORMAT = "%(asctime)s %(message)s"
-COLOR_LOG_FORMAT_SUFFIX = "\033[1m %(log_color)s "
-LOG_COLORS = {'DEBUG': 'white', 'INFO': 'cyan', 'WARNING': 'yellow', 'ERROR': 'red', 'CRITICAL': 'red,bg_white'}
-
-# @Task(name='sneakers.analyze_update', queue="analyze_result")
-# def update_task(result={}):
-#     raise NotImplementedError()
-
-def config_logging(debug, logs_dir, append=True):
-    """Config logging level output output"""
-
-    if debug:
-        fmt = DEBUG_LOG_FORMAT
-        logging_mode = logging.DEBUG
-    else:
-        fmt = INFO_LOG_FORMAT
-        logging_mode = logging.INFO
-
-    # Setting the color scheme and level into the root logger
-    logging.basicConfig(level=logging_mode)
-    stream = logging.root.handlers[0]
-    formatter = colorlog.ColoredFormatter(fmt=COLOR_LOG_FORMAT_SUFFIX + fmt,
-                                          log_colors=LOG_COLORS)
-    stream.setFormatter(formatter)
-
-    # Creating a file handler and adding it to root
-    if logs_dir:
-        fh_filepath = os.path.join(logs_dir, 'all.log')
-        fh = logging.FileHandler(fh_filepath, mode=('a' if append else 'w'))
-        fh.setLevel(logging_mode)
-        formatter = logging.Formatter(fmt)
-        fh.setFormatter(formatter)
-        logging.getLogger().addHandler(fh)
-
-    # ES logger is set to INFO since, it produces a really verbose output if set to DEBUG
-    logging.getLogger('elasticsearch').setLevel(logging.WARNING)
-
-    # Show if debug mode is activated
-    if debug:
-        logging.debug("Debug mode activated")
-
 # #Example:
 # {
 #     "raw":true,
@@ -76,6 +32,7 @@ def config_logging(debug, logs_dir, append=True):
 #     "panels":false,
 #     "metrics_activity":true,
 #     "metrics_community":true,
+#     "metrics_codequality":true,
 #     "debug":false,
 #     "project_url":"https://github.com/manateelazycat/lsp-bridge"
 # }
@@ -286,7 +243,7 @@ def setup(*args, **kwargs):
 
         setup['github:repo'] = {
             'raw_index': 'github-repo_raw',
-            'enriched_index': 'gitee_repo-enriched',
+            'enriched_index': 'github_repo-enriched',
             'category': 'repository',
             'api-token': api_token,
             'proxy': proxy,
