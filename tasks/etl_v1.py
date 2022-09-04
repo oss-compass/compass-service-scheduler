@@ -8,6 +8,7 @@ import yaml
 import configparser
 
 import tldextract
+import requests
 
 from urllib.parse import urlparse
 from os.path import join, exists, abspath
@@ -22,9 +23,48 @@ DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
 CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
-SUPPORT_DOMAINS = ['gitee.com', 'github.com']
+SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
-# #Example:
+def normalize_url(url):
+    uri = urlparse(url)
+    return f"{uri.scheme}://{uri.netloc}{uri.path}"
+
+def normalize_key(url):
+    uri = urlparse(url)
+    domain_name = tldextract.extract(uri.netloc).domain
+    return f"{domain_name}{uri.path.replace('/', '-')}"
+
+def gen_project_section(project_data, domain_name, key, url):
+    if domain_name == 'gitee':
+        project_data[key] = {}
+        project_data[key]['git'] = [f"{url}.git"]
+        project_data[key][domain_name] = [url]
+        project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
+        project_data[key][f"{domain_name}:repo"] = [url]
+    elif domain_name == 'github':
+        project_data[key] = {}
+        project_data[key]['git'] = [f"{url}.git"]
+        project_data[key][f"{domain_name}:issue"] = [url]
+        project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
+        project_data[key][f"{domain_name}:repo"] = [url]
+    return project_data
+
+def load_yaml_template(url):
+    proxies = {
+        'http': config.get('GITHUB_PROXY'),
+        'https': config.get('GITHUB_PROXY'),
+    }
+    uri = urlparse(url)
+    domain_name = tldextract.extract(uri.netloc).domain
+    if domain_name == 'gitee':
+        return yaml.safe_load(requests.get(url, allow_redirects=True).text)
+    else:
+        return yaml.safe_load(requests.get(url, allow_redirects=True, proxies=proxies).text)
+# #Repository Example:
 # {
 #     "raw":true,
 #     "enrich":true,
@@ -35,7 +75,24 @@ SUPPORT_DOMAINS = ['gitee.com', 'github.com']
 #     "metrics_community":true,
 #     "metrics_codequality":true,
 #     "debug":false,
-#     "project_url":"https://github.com/manateelazycat/lsp-bridge"
+#     "project_url":"https://github.com/manateelazycat/lsp-bridge",
+#     "level":"repo"
+# }
+
+
+# #Project Example:
+# {
+#     "raw":true,
+#     "enrich":true,
+#     "identities_load":false,
+#     "identities_merge":false,
+#     "panels":false,
+#     "metrics_activity":true,
+#     "metrics_community":true,
+#     "metrics_codequality":true,
+#     "debug":false,
+#     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/master/mindspore/mindspores.yaml",
+#     "level":"project"
 # }
 
 @task(name="etl_v1.extract")
@@ -66,6 +123,37 @@ def extract(*args, **kwargs):
         raise Exception(f"no support project from {project_uri}")
     return params
 
+@task(name="etl_v1.extract_group")
+def extract_group(*args, **kwargs):
+    payload = kwargs['payload']
+    project_yaml = urlparse(payload['project_template_yaml'])
+    params = {}
+    h = hashlib.new('sha256')
+    params['scheme'] = project_yaml.scheme
+    params['domain'] = project_yaml.netloc
+    params['path'] = project_yaml.path
+    if not (params['domain'] in SUPPORT_DOMAINS):
+        raise Exception(f"no support project from {project_yaml}")
+    project_yaml_url = f"{params['scheme']}://{params['domain']}{params['path']}"
+    params['project_yaml_url'] = project_yaml_url
+    params['project_yaml'] = load_yaml_template(project_yaml_url)
+    params['project_key'] = next(iter(params['project_yaml']))
+    params['project_urls'] = params['project_yaml'].get(params['project_key']).get('repositories')
+    params['domain_name'] = 'gitee' if tldextract.extract(project_yaml.netloc).domain == 'gitee' else 'github'
+    h.update(bytes(params['path'], encoding='utf-8'))
+    params['project_hash'] = h.hexdigest()
+    params['raw'] = bool(payload.get('raw'))
+    params['identities_load'] = bool(payload.get('identities_load'))
+    params['identities_merge'] = bool(payload.get('identities_merge'))
+    params['enrich'] = bool(payload.get('enrich'))
+    params['panels'] = bool(payload.get('panels'))
+    params['level'] = ('project' if payload.get('level') == 'project' else 'repo')
+    params['debug'] = bool(payload.get('debug'))
+    params['metrics_activity'] = bool(payload.get('metrics_activity'))
+    params['metrics_community'] = bool(payload.get('metrics_community'))
+    params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
+    return params
+
 @task(name="etl_v1.initialize")
 def initialize(*args, **kwargs):
     params = args[0]
@@ -83,23 +171,7 @@ def initialize(*args, **kwargs):
     key = params['project_key']
     url = params['project_url']
     domain_name = params['domain_name']
-
-    if domain_name == 'gitee':
-        project_data[key] = {}
-        project_data[key]['git'] = [f"{url}.git"]
-        project_data[key][domain_name] = [url]
-        project_data[key][f"{domain_name}:pull"] = [url]
-        project_data[key][f"{domain_name}2:issue"] = [url]
-        project_data[key][f"{domain_name}2:pull"] = [url]
-        project_data[key][f"{domain_name}:repo"] = [url]
-    elif domain_name == 'github':
-        project_data[key] = {}
-        project_data[key]['git'] = [f"{url}.git"]
-        project_data[key][f"{domain_name}:issue"] = [url]
-        project_data[key][f"{domain_name}:pull"] = [url]
-        project_data[key][f"{domain_name}2:issue"] = [url]
-        project_data[key][f"{domain_name}2:pull"] = [url]
-        project_data[key][f"{domain_name}:repo"] = [url]
+    project_data = gen_project_section(project_data, domain_name, key, url)
 
     project_data_path = join(configs_dir, JSON_NAME)
     with open(project_data_path, 'w') as f:
@@ -108,6 +180,51 @@ def initialize(*args, **kwargs):
     metrics_data = {}
     metrics_data[key] = {}
     metrics_data[key][domain_name] = [url]
+
+    metrics_data_path = join(metrics_dir, JSON_NAME)
+    with open(metrics_data_path, 'w') as jsonfile:
+        json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
+
+    config_logging(params['debug'], logs_dir, False)
+
+    params['project_configs_dir'] = configs_dir
+    params['project_logs_dir'] = logs_dir
+    params['project_metrics_dir'] = metrics_dir
+    params['project_data_path'] = project_data_path
+    params['metrics_data_path'] = metrics_data_path
+
+    return params
+
+@task(name="etl_v1.initialize_group")
+def initialize_group(*args, **kwargs):
+    params = args[0]
+    root = config.get('GRIMOIRELAB_CONFIG_FOLDER') or DEFAULT_CONFIG_DIR
+
+    configs_dir = abspath(join(root, params['project_hash'][:2], params['project_hash'][2:]))
+    logs_dir = abspath(join(configs_dir, 'logs'))
+    metrics_dir = abspath(join(configs_dir, 'metrics'))
+
+    for directory in [configs_dir, logs_dir, metrics_dir]:
+        if not exists(directory):
+            os.makedirs(directory)
+
+    project_data = {}
+    name = params['project_key']
+    urls = params['project_urls']
+    domain_name = params['domain_name']
+
+    for project_url in urls:
+        url = normalize_url(project_url)
+        key = normalize_key(project_url)
+        project_data = gen_project_section(project_data, domain_name, key, url)
+
+    project_data_path = join(configs_dir, JSON_NAME)
+    with open(project_data_path, 'w') as f:
+        json.dump(project_data, f, indent=4, sort_keys=True)
+
+    metrics_data = {}
+    metrics_data[name] = {}
+    metrics_data[name][domain_name] = urls
 
     metrics_data_path = join(metrics_dir, JSON_NAME)
     with open(metrics_data_path, 'w') as jsonfile:
@@ -164,7 +281,7 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'latest-items': 'true',
+        'latest-items': 'false',
         'category': 'commit'
     }
 

@@ -15,3 +15,21 @@ insight.ETL_V1:
           - etl_v1.metrics.community
           - etl_v1.metrics.codequality
   queue: analyze_queue_v1
+
+insight.ETL_V1_GROUP:
+  tasks:
+    - etl_v1.extract_group
+    - etl_v1.initialize_group
+    - etl_v1.setup
+    - etl_v1.raw
+    - etl_v1.enrich
+    - etl_v1.identities
+    - etl_v1.panels
+    - GROUP_1:
+        type: group
+        tasks:
+          - etl_v1.metrics.activity
+          - etl_v1.metrics.community
+          - etl_v1.metrics.codequality
+  queue: analyze_queue_v2
+
