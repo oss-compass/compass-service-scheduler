@@ -470,7 +470,7 @@ def metrics_activity(*args, **kwargs):
         params['metrics_activity_finished_at'] = 'skipped'
     return params
 
-@task(name="etl_v1.metrics.community", queue="analyze_queue_v1", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+@task(name="etl_v1.metrics.community", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_community(*args, **kwargs):
     params = args[0]
     project_key = params['project_key']
