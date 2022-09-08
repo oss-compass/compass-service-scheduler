@@ -8,16 +8,19 @@ import yaml
 import configparser
 
 import tldextract
-import requests
 
-from urllib.parse import urlparse
 from os.path import join, exists, abspath
 from datetime import datetime
 
 from . import config_logging
+from ..utils import tools
 from sirmordred.utils.micro import micro_mordred
 
-from compass_metrics_model.metrics_model import ActivityMetricsModel, CommunitySupportMetricsModel, CodeQualityGuaranteeMetricsModel
+from compass_metrics_model.metrics_model import (
+    ActivityMetricsModel,
+    CommunitySupportMetricsModel,
+    CodeQualityGuaranteeMetricsModel
+)
 
 DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
@@ -25,45 +28,6 @@ CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
-def normalize_url(url):
-    uri = urlparse(url)
-    return f"{uri.scheme}://{uri.netloc}{uri.path}"
-
-def normalize_key(url):
-    uri = urlparse(url)
-    domain_name = tldextract.extract(uri.netloc).domain
-    return f"{domain_name}{uri.path.replace('/', '-')}"
-
-def gen_project_section(project_data, domain_name, key, url):
-    if domain_name == 'gitee':
-        project_data[key] = {}
-        project_data[key]['git'] = [f"{url}.git"]
-        project_data[key][domain_name] = [url]
-        project_data[key][f"{domain_name}:pull"] = [url]
-        project_data[key][f"{domain_name}2:issue"] = [url]
-        project_data[key][f"{domain_name}2:pull"] = [url]
-        project_data[key][f"{domain_name}:repo"] = [url]
-    elif domain_name == 'github':
-        project_data[key] = {}
-        project_data[key]['git'] = [f"{url}.git"]
-        project_data[key][f"{domain_name}:issue"] = [url]
-        project_data[key][f"{domain_name}:pull"] = [url]
-        project_data[key][f"{domain_name}2:issue"] = [url]
-        project_data[key][f"{domain_name}2:pull"] = [url]
-        project_data[key][f"{domain_name}:repo"] = [url]
-    return project_data
-
-def load_yaml_template(url):
-    proxies = {
-        'http': config.get('GITHUB_PROXY'),
-        'https': config.get('GITHUB_PROXY'),
-    }
-    uri = urlparse(url)
-    domain_name = tldextract.extract(uri.netloc).domain
-    if domain_name == 'gitee':
-        return yaml.safe_load(requests.get(url, allow_redirects=True).text)
-    else:
-        return yaml.safe_load(requests.get(url, allow_redirects=True, proxies=proxies).text)
 # #Repository Example:
 # {
 #     "raw":true,
@@ -78,7 +42,6 @@ def load_yaml_template(url):
 #     "project_url":"https://github.com/manateelazycat/lsp-bridge",
 #     "level":"repo"
 # }
-
 
 # #Project Example:
 # {
@@ -98,15 +61,13 @@ def load_yaml_template(url):
 @task(name="etl_v1.extract")
 def extract(*args, **kwargs):
     payload = kwargs['payload']
-    project_uri = urlparse(payload['project_url'])
+    url = payload['project_url']
     params = {}
     h = hashlib.new('sha256')
-    params['scheme'] = project_uri.scheme
-    params['domain'] = project_uri.netloc
-    params['path'] = project_uri.path
-    params['project_url'] = f"{params['scheme']}://{params['domain']}{params['path']}"
-    params['domain_name'] = tldextract.extract(project_uri.netloc).domain
-    params['project_key'] = f"{params['domain_name']}{params['path'].replace('/', '-')}"
+    params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
+    params['project_url'] = tools.normalize_url(url)
+    params['domain_name'] = tools.extract_domain(url)
+    params['project_key'] = tools.normalize_key(url)
     h.update(bytes(params['project_url'], encoding='utf-8'))
     params['project_hash'] = h.hexdigest()
     params['raw'] = bool(payload.get('raw'))
@@ -126,20 +87,18 @@ def extract(*args, **kwargs):
 @task(name="etl_v1.extract_group")
 def extract_group(*args, **kwargs):
     payload = kwargs['payload']
-    project_yaml = urlparse(payload['project_template_yaml'])
+    url = payload['project_template_yaml']
     params = {}
     h = hashlib.new('sha256')
-    params['scheme'] = project_yaml.scheme
-    params['domain'] = project_yaml.netloc
-    params['path'] = project_yaml.path
+    params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
     if not (params['domain'] in SUPPORT_DOMAINS):
-        raise Exception(f"no support project from {project_yaml}")
-    project_yaml_url = f"{params['scheme']}://{params['domain']}{params['path']}"
+        raise Exception(f"no support project from {url}")
+    project_yaml_url = tools.normalize_url(url)
     params['project_yaml_url'] = project_yaml_url
-    params['project_yaml'] = load_yaml_template(project_yaml_url)
-    params['project_key'] = next(iter(params['project_yaml']))
+    params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
+    params['project_key'] = next(iter(params['project_yaml'])).lower()
     params['project_urls'] = params['project_yaml'].get(params['project_key']).get('repositories')
-    params['domain_name'] = 'gitee' if tldextract.extract(project_yaml.netloc).domain == 'gitee' else 'github'
+    params['domain_name'] = tools.extract_domain(url)
     h.update(bytes(params['path'], encoding='utf-8'))
     params['project_hash'] = h.hexdigest()
     params['raw'] = bool(payload.get('raw'))
@@ -171,7 +130,7 @@ def initialize(*args, **kwargs):
     key = params['project_key']
     url = params['project_url']
     domain_name = params['domain_name']
-    project_data = gen_project_section(project_data, domain_name, key, url)
+    project_data = tools.gen_project_section(project_data, domain_name, key, url)
 
     project_data_path = join(configs_dir, JSON_NAME)
     with open(project_data_path, 'w') as f:
@@ -214,9 +173,9 @@ def initialize_group(*args, **kwargs):
     domain_name = params['domain_name']
 
     for project_url in urls:
-        url = normalize_url(project_url)
-        key = normalize_key(project_url)
-        project_data = gen_project_section(project_data, domain_name, key, url)
+        url = tools.normalize_url(project_url)
+        key = tools.normalize_key(project_url)
+        project_data = tools.gen_project_section(project_data, domain_name, key, url)
 
     project_data_path = join(configs_dir, JSON_NAME)
     with open(project_data_path, 'w') as f:
@@ -258,30 +217,30 @@ def setup(*args, **kwargs):
     project_key = params['project_key']
     domain_name = params['domain_name']
 
-    input_git_raw_index = f"{project_key}_raw"
-    input_git_enriched_index = f"{project_key}_enriched"
+    input_git_raw_index = f"{domain_name}-git_raw"
+    input_git_enriched_index = f"{domain_name}-git_enriched"
 
-    input_repo_raw_index = f"{project_key}-repo_raw"
-    input_repo_enriched_index = f"{project_key}-repo_enriched"
+    input_repo_raw_index = f"{domain_name}-repo_raw"
+    input_repo_enriched_index = f"{domain_name}-repo_enriched"
 
-    input_raw_issues_index = f"{project_key}-issues_raw"
-    input_enrich_issues_index = f"{project_key}-issues_enriched"
+    input_raw_issues_index = f"{domain_name}-issues_raw"
+    input_enrich_issues_index = f"{domain_name}-issues_enriched"
 
-    input_raw_issues2_index = f"{project_key}2-issues_raw"
-    input_enrich_issues2_index = f"{project_key}2-issues_enriched"
+    input_raw_issues2_index = f"{domain_name}2-issues_raw"
+    input_enrich_issues2_index = f"{domain_name}2-issues_enriched"
 
-    input_raw_pulls_index = f"{project_key}-pulls_raw"
-    input_enrich_pulls_index = f"{project_key}-pulls_enriched"
+    input_raw_pulls_index = f"{domain_name}-pulls_raw"
+    input_enrich_pulls_index = f"{domain_name}-pulls_enriched"
 
-    input_raw_pulls2_index = f"{project_key}2-pulls_raw"
-    input_enrich_pulls2_index = f"{project_key}2-pulls_enriched"
+    input_raw_pulls2_index = f"{domain_name}2-pulls_raw"
+    input_enrich_pulls2_index = f"{domain_name}2-pulls_enriched"
 
-    input_enrich_releases_index = f"{project_key}-releases_enriched"
+    input_enrich_releases_index = f"{domain_name}-releases_enriched"
 
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'latest-items': 'false',
+        'latest-items': 'true',
         'category': 'commit'
     }
 
@@ -458,7 +417,7 @@ def metrics_activity(*args, **kwargs):
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{project_key}_activity",
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
             'community': project_key,
             'level': params['level']
         }
@@ -486,7 +445,7 @@ def metrics_community(*args, **kwargs):
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{project_key}_community",
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
             'community': project_key,
             'level': params['level']
         }
@@ -514,7 +473,7 @@ def metrics_codequality(*args, **kwargs):
             'git_index': params['project_git_index'],
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{project_key}_codequality",
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
             'community': project_key,
             'level': params['level'],
             'company': None,
