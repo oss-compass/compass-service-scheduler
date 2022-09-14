@@ -14,6 +14,7 @@ insight.ETL_V1:
           - etl_v1.metrics.activity
           - etl_v1.metrics.community
           - etl_v1.metrics.codequality
+    - etl_v1.notify
   queue: analyze_queue_v1
 
 insight.ETL_V1_GROUP:
@@ -31,5 +32,6 @@ insight.ETL_V1_GROUP:
           - etl_v1.metrics.activity
           - etl_v1.metrics.community
           - etl_v1.metrics.codequality
+    - etl_v1.notify
   queue: analyze_queue_v2
 

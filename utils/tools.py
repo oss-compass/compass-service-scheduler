@@ -1,6 +1,7 @@
 import requests
 import tldextract
 import yaml
+import hashlib
 
 from director import task, config
 from urllib.parse import urlparse
@@ -25,6 +26,11 @@ def normalize_key(url):
     uri = urlparse(url)
     domain_name = tldextract.extract(uri.netloc).domain
     return f"{domain_name}{uri.path.replace('/', '-')}".lower()
+
+def hash_string(string):
+    h = hashlib.new('sha256')
+    h.update(bytes(string, encoding='utf-8'))
+    return h.hexdigest()
 
 def gen_project_section(project_data, domain_name, key, url):
     if domain_name == 'gitee':

@@ -2,12 +2,11 @@ from director import task, config
 
 import os
 import time
-import hashlib
+
 import json
 import yaml
 import configparser
-
-import tldextract
+import requests
 
 from os.path import join, exists, abspath
 from datetime import datetime
@@ -28,6 +27,13 @@ CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
+def validate_callback(callback):
+    if 'hook_url' in callback and 'params' in callback:
+        if callback['hook_url'] and callback['params'] and \
+        type(callback['params']) == dict and \
+        type(callback['hook_url']) == str:
+            return True
+    return False
 # #Repository Example:
 # {
 #     "raw":true,
@@ -40,7 +46,11 @@ SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 #     "metrics_codequality":true,
 #     "debug":false,
 #     "project_url":"https://github.com/manateelazycat/lsp-bridge",
-#     "level":"repo"
+#     "level":"repo",
+#     "callback": {
+#       "hook_url": "http://106.13.250.196:3000/api/hook",
+#       "params": {},
+#     }
 # }
 
 # #Project Example:
@@ -55,21 +65,32 @@ SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 #     "metrics_codequality":true,
 #     "debug":false,
 #     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/master/mindspore/mindspores.yaml",
-#     "level":"project"
+#     "level":"project",
+#     "callback": {
+#       "hook_url": "http://106.13.250.196:3000/api/hook",
+#       "params": {},
+#     }
 # }
 
-@task(name="etl_v1.extract")
-def extract(*args, **kwargs):
+@task(name="etl_v1.extract", bind=True)
+def extract(self, *args, **kwargs):
     payload = kwargs['payload']
     url = payload['project_url']
     params = {}
-    h = hashlib.new('sha256')
     params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
+    params['callback'] = callback = payload.get('callback')
+    if not (params['domain'] in SUPPORT_DOMAINS):
+        message = f"no support project from {url}"
+        if validate_callback(callback):
+            callback['params']['password'] = config.get('HOOK_PASS')
+            callback['params']['result'] = { 'task': self.name ,'status': False, 'message': message }
+            requests.post(callback['hook_url'], json=callback['params'])
+        raise Exception(f"no support project from {url}")
+
     params['project_url'] = tools.normalize_url(url)
     params['domain_name'] = tools.extract_domain(url)
     params['project_key'] = tools.normalize_key(url)
-    h.update(bytes(params['project_url'], encoding='utf-8'))
-    params['project_hash'] = h.hexdigest()
+    params['project_hash'] = tools.hash_string(params['project_url'])
     params['raw'] = bool(payload.get('raw'))
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
@@ -80,8 +101,6 @@ def extract(*args, **kwargs):
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
-    if not (params['domain'] in SUPPORT_DOMAINS):
-        raise Exception(f"no support project from {project_uri}")
     return params
 
 @task(name="etl_v1.extract_group")
@@ -89,18 +108,17 @@ def extract_group(*args, **kwargs):
     payload = kwargs['payload']
     url = payload['project_template_yaml']
     params = {}
-    h = hashlib.new('sha256')
     params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
     if not (params['domain'] in SUPPORT_DOMAINS):
         raise Exception(f"no support project from {url}")
+
     project_yaml_url = tools.normalize_url(url)
     params['project_yaml_url'] = project_yaml_url
     params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
     params['project_key'] = next(iter(params['project_yaml'])).lower()
     params['project_urls'] = params['project_yaml'].get(params['project_key']).get('repositories')
     params['domain_name'] = tools.extract_domain(url)
-    h.update(bytes(params['path'], encoding='utf-8'))
-    params['project_hash'] = h.hexdigest()
+    params['project_hash'] = tools.hash_string(params['project_yaml_url'])
     params['raw'] = bool(payload.get('raw'))
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
@@ -487,3 +505,14 @@ def metrics_codequality(*args, **kwargs):
         params['metrics_codequality_finished_at'] = 'skipped'
     return params
 
+
+@task(name="etl_v1.notify", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def notify(*args, **kwargs):
+    params = args[0][0]
+    callback = params['callback']
+    target = params['project_url'] or params['project_key']
+    if validate_callback(callback):
+        callback['params']['password'] = config.get('HOOK_PASS')
+        callback['params']['domain'] = params['domain_name']
+        callback['params']['result'] = { 'status': True, 'message':  f"{target} analysis task finished successfully"}
+        requests.post(callback['hook_url'], json=callback['params'])
