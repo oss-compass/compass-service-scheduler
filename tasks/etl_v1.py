@@ -64,7 +64,7 @@ def validate_callback(callback):
 #     "metrics_community":true,
 #     "metrics_codequality":true,
 #     "debug":false,
-#     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/master/mindspore/mindspores.yaml",
+#     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/main/organizations/EAF.yml",
 #     "level":"project",
 #     "callback": {
 #       "hook_url": "http://106.13.250.196:3000/api/hook",
@@ -109,14 +109,20 @@ def extract_group(*args, **kwargs):
     url = payload['project_template_yaml']
     params = {}
     params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
+    params['callback'] = callback = payload.get('callback')
     if not (params['domain'] in SUPPORT_DOMAINS):
+        message = f"no support project from {url}"
+        if validate_callback(callback):
+            callback['params']['password'] = config.get('HOOK_PASS')
+            callback['params']['result'] = { 'task': self.name ,'status': False, 'message': message }
+            requests.post(callback['hook_url'], json=callback['params'])
         raise Exception(f"no support project from {url}")
 
     project_yaml_url = tools.normalize_url(url)
     params['project_yaml_url'] = project_yaml_url
     params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
-    params['project_key'] = next(iter(params['project_yaml'])).lower()
-    params['project_urls'] = params['project_yaml'].get(params['project_key']).get('repositories')
+    params['project_key'] = params['project_yaml']['organization_name']
+    params['project_types'] = params['project_yaml']['project_types']
     params['domain_name'] = tools.extract_domain(url)
     params['project_hash'] = tools.hash_string(params['project_yaml_url'])
     params['raw'] = bool(payload.get('raw'))
@@ -186,22 +192,22 @@ def initialize_group(*args, **kwargs):
             os.makedirs(directory)
 
     project_data = {}
-    name = params['project_key']
-    urls = params['project_urls']
+    metrics_data = {}
+    name_prefix = params['project_key']
     domain_name = params['domain_name']
 
-    for project_url in urls:
-        url = tools.normalize_url(project_url)
-        key = tools.normalize_key(project_url)
-        project_data = tools.gen_project_section(project_data, domain_name, key, url)
+    for (project_type, project_info) in params['project_types'].items():
+        urls = project_info['data_sources']['repo_names']
+        metrics_data[f"{name_prefix}-{project_type}"] = {}
+        metrics_data[f"{name_prefix}-{project_type}"][domain_name] = urls
+        for project_url in urls:
+            url = tools.normalize_url(project_url)
+            key = tools.normalize_key(project_url)
+            project_data = tools.gen_project_section(project_data, domain_name, key, url)
 
     project_data_path = join(configs_dir, JSON_NAME)
     with open(project_data_path, 'w') as f:
         json.dump(project_data, f, indent=4, sort_keys=True)
-
-    metrics_data = {}
-    metrics_data[name] = {}
-    metrics_data[name][domain_name] = urls
 
     metrics_data_path = join(metrics_dir, JSON_NAME)
     with open(metrics_data_path, 'w') as jsonfile:
@@ -510,7 +516,7 @@ def metrics_codequality(*args, **kwargs):
 def notify(*args, **kwargs):
     params = args[0][0]
     callback = params['callback']
-    target = params['project_url'] or params['project_key']
+    target = params.get('project_url') or params.get('project_key')
     if validate_callback(callback):
         callback['params']['password'] = config.get('HOOK_PASS')
         callback['params']['domain'] = params['domain_name']
