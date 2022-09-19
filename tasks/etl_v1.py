@@ -28,7 +28,7 @@ JSON_NAME = 'project.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
 def validate_callback(callback):
-    if 'hook_url' in callback and 'params' in callback:
+    if type(callback) == dict and 'hook_url' in callback and 'params' in callback:
         if callback['hook_url'] and callback['params'] and \
         type(callback['params']) == dict and \
         type(callback['hook_url']) == str:
@@ -334,6 +334,7 @@ def setup(*args, **kwargs):
     params['project_setup_path'] = project_setup_path
     params['project_backends'] = backends
     params['project_issues_index'] = input_enrich_issues_index
+    params['project_issues2_index'] = input_enrich_issues2_index
     params['project_pulls_index'] = input_enrich_pulls_index
     params['project_pulls2_index'] = input_enrich_pulls2_index
     params['project_git_index'] = input_git_enriched_index
@@ -443,7 +444,9 @@ def metrics_activity(*args, **kwargs):
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
             'community': project_key,
-            'level': params['level']
+            'level': params['level'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index']
         }
         params['metrics_activity_params'] = metrics_cfg
         model_activity = ActivityMetricsModel(**metrics_cfg['params'])
@@ -521,4 +524,7 @@ def notify(*args, **kwargs):
         callback['params']['password'] = config.get('HOOK_PASS')
         callback['params']['domain'] = params['domain_name']
         callback['params']['result'] = { 'status': True, 'message':  f"{target} analysis task finished successfully"}
-        requests.post(callback['hook_url'], json=callback['params'])
+        resp = requests.post(callback['hook_url'], json=callback['params'])
+        return { 'status': True, 'code': resp.status_code, 'message': resp.text }
+    else:
+        return { 'status': False, 'message': 'no callback' }
