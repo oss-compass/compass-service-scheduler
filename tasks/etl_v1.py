@@ -264,7 +264,8 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'latest-items': 'true',
+        'from-date': config.get('METRICS_FROM_DATE'),
+        'to-date': datetime.now().strftime('%Y-%m-%d'),
         'category': 'commit'
     }
 
