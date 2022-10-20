@@ -1,10 +1,8 @@
 from director import task, config
 
 import os
-import time
 
 import json
-import yaml
 import configparser
 import requests
 
@@ -18,7 +16,8 @@ from sirmordred.utils.micro import micro_mordred
 from compass_metrics_model.metrics_model import (
     ActivityMetricsModel,
     CommunitySupportMetricsModel,
-    CodeQualityGuaranteeMetricsModel
+    CodeQualityGuaranteeMetricsModel,
+    OrganizationsActivityMetricsModel
 )
 
 DEFAULT_CONFIG_DIR = 'analysis_data'
@@ -28,8 +27,10 @@ JSON_NAME = 'project.json'
 COMMUNITY_JSON_NAME = 'community.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
+
 def validate_callback(callback):
-    if type(callback) == dict and 'hook_url' in callback and 'params' in callback:
+    if type(callback) == dict and 'hook_url' in callback and \
+       'params' in callback:
         if callback['hook_url'] and callback['params'] and \
            type(callback['params']) == dict and \
            type(callback['hook_url']) == str:
@@ -39,12 +40,13 @@ def validate_callback(callback):
 # {
 #     "raw":true,
 #     "enrich":true,
-#     "identities_load":false,
-#     "identities_merge":false,
+#     "identities_load":true,
+#     "identities_merge":true,
 #     "panels":false,
 #     "metrics_activity":true,
 #     "metrics_community":true,
 #     "metrics_codequality":true,
+#     "metrics_group_activity":true,
 #     "debug":false,
 #     "project_url":"https://github.com/manateelazycat/lsp-bridge",
 #     "level":"repo",
@@ -58,12 +60,13 @@ def validate_callback(callback):
 # {
 #     "raw":true,
 #     "enrich":true,
-#     "identities_load":false,
-#     "identities_merge":false,
+#     "identities_load":true,
+#     "identities_merge":true,
 #     "panels":false,
 #     "metrics_activity":true,
 #     "metrics_community":true,
 #     "metrics_codequality":true,
+#     "metrics_group_activity":true,
 #     "debug":false,
 #     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/main/organizations/EAF.yml",
 #     "level":"project",
@@ -84,7 +87,11 @@ def extract(self, *args, **kwargs):
         message = f"no support project from {url}"
         if validate_callback(callback):
             callback['params']['password'] = config.get('HOOK_PASS')
-            callback['params']['result'] = { 'task': self.name ,'status': False, 'message': message }
+            callback['params']['result'] = {
+                'task': self.name,
+                'status': False,
+                'message': message
+            }
             requests.post(callback['hook_url'], json=callback['params'])
         raise Exception(f"no support project from {url}")
 
@@ -102,10 +109,13 @@ def extract(self, *args, **kwargs):
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
+    params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
+
     return params
 
-@task(name="etl_v1.extract_group")
-def extract_group(*args, **kwargs):
+
+@task(name="etl_v1.extract_group", bind=True)
+def extract_group(self, *args, **kwargs):
     payload = kwargs['payload']
     url = payload['project_template_yaml']
     params = {}
@@ -115,7 +125,7 @@ def extract_group(*args, **kwargs):
         message = f"no support project from {url}"
         if validate_callback(callback):
             callback['params']['password'] = config.get('HOOK_PASS')
-            callback['params']['result'] = { 'task': self.name ,'status': False, 'message': message }
+            callback['params']['result'] = {'task': self.name, 'status': False, 'message': message}
             requests.post(callback['hook_url'], json=callback['params'])
         raise Exception(f"no support project from {url}")
 
@@ -137,6 +147,7 @@ def extract_group(*args, **kwargs):
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     return params
+
 
 @task(name="etl_v1.initialize")
 def initialize(*args, **kwargs):
@@ -179,6 +190,7 @@ def initialize(*args, **kwargs):
 
     return params
 
+
 @task(name="etl_v1.initialize_group")
 def initialize_group(*args, **kwargs):
     params = args[0]
@@ -220,7 +232,6 @@ def initialize_group(*args, **kwargs):
     with open(project_data_path, 'w') as f:
         json.dump(project_data, f, indent=4, sort_keys=True)
 
-
     if len(metrics_data) > 0:
         metrics_data_path = join(metrics_dir, JSON_NAME)
         with open(metrics_data_path, 'w') as jsonfile:
@@ -257,7 +268,6 @@ def setup(*args, **kwargs):
 
     # default configuration
     backends = ['git']
-    project_key = params['project_key']
     domain_name = params['domain_name']
 
     input_git_raw_index = f"{domain_name}-git_raw"
@@ -358,8 +368,10 @@ def setup(*args, **kwargs):
     params['project_pulls_index'] = input_enrich_pulls_index
     params['project_pulls2_index'] = input_enrich_pulls2_index
     params['project_git_index'] = input_git_enriched_index
+    params['project_repo_index'] = input_repo_enriched_index
     params['project_release_index'] = input_enrich_releases_index
     return params
+
 
 @task(name="etl_v1.raw", autoretry_for=(Exception,), retry_kwargs={'max_retries': 5}, acks_late=True)
 def raw(*args, **kwargs):
@@ -382,6 +394,7 @@ def raw(*args, **kwargs):
         params['raw_finished_at'] = 'skipped'
     return params
 
+
 @task(name="etl_v1.enrich", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
 def enrich(*args, **kwargs):
     params = args[0]
@@ -403,7 +416,8 @@ def enrich(*args, **kwargs):
         params['enrich_finished_at'] = 'skipped'
     return params
 
-@task(name="etl_v1.identities", acks_late=True)
+
+@task(name="etl_v1.identities", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def identities(*args, **kwargs):
     params = args[0]
     config_logging(params['debug'], params['project_logs_dir'])
@@ -423,6 +437,7 @@ def identities(*args, **kwargs):
     else:
         params['identities_finished_at'] = 'skipped'
     return params
+
 
 @task(name="etl_v1.panels", acks_late=True)
 def panels(*args, **kwargs):
@@ -445,6 +460,7 @@ def panels(*args, **kwargs):
         params['panels_finished_at'] = 'skipped'
     return params
 
+
 @task(name="etl_v1.metrics.activity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_activity(*args, **kwargs):
     params = args[0]
@@ -461,7 +477,7 @@ def metrics_activity(*args, **kwargs):
             if metrics_json_path:
                 metrics_cfg = {}
                 metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] =   {
+                metrics_cfg['params'] = {
                     'issue_index': params['project_issues_index'],
                     'pr_index': params['project_pulls_index'],
                     'release_index': params['project_release_index'],
@@ -483,6 +499,7 @@ def metrics_activity(*args, **kwargs):
         params['metrics_activity_finished_at'] = 'skipped'
     return params
 
+
 @task(name="etl_v1.metrics.community", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_community(*args, **kwargs):
     params = args[0]
@@ -499,7 +516,7 @@ def metrics_community(*args, **kwargs):
             if metrics_json_path:
                 metrics_cfg = {}
                 metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] =   {
+                metrics_cfg['params'] = {
                     'issue_index': params['project_issues_index'],
                     'pr_index': params['project_pulls_index'],
                     'json_file': metrics_json_path,
@@ -518,6 +535,7 @@ def metrics_community(*args, **kwargs):
         params['metrics_community_finished_at'] = 'skipped'
     return params
 
+
 @task(name="etl_v1.metrics.codequality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_codequality(*args, **kwargs):
     params = args[0]
@@ -534,7 +552,7 @@ def metrics_codequality(*args, **kwargs):
             if metrics_json_path:
                 metrics_cfg = {}
                 metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] =   {
+                metrics_cfg['params'] = {
                     'issue_index': params['project_issues_index'],
                     'pr_index': params['project_pulls_index'],
                     'json_file': metrics_json_path,
@@ -556,6 +574,46 @@ def metrics_codequality(*args, **kwargs):
     return params
 
 
+@task(name="etl_v1.metrics.group_activity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_group_activity(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_metrics_group_activity_started_at'] = datetime.now()
+    metrics_params = {
+        'project': params.get('metrics_data_path'),
+        'community': params.get('community_metrics_data_path')
+    }
+    if params['metrics_group_activity']:
+        for (level, metrics_json_path) in metrics_params.items():
+            level = params['level'] if params['level'] == 'repo' else level
+            if metrics_json_path:
+                metrics_cfg = {}
+                metrics_cfg['url'] = config.get('ES_URL')
+                metrics_cfg['params'] = {
+                    'issue_index': params['project_issues_index'],
+                    'pr_index': params['project_pulls_index'],
+                    'repo_index': params['project_repo_index'],
+                    'json_file': metrics_json_path,
+                    'git_index': params['project_git_index'],
+                    'from_date': config.get('METRICS_FROM_DATE'),
+                    'end_date': datetime.now().strftime('%Y-%m-%d'),
+                    'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
+                    'community': project_key,
+                    'level': level,
+                    'company': None,
+                    'issue_comments_index': params['project_issues2_index'],
+                    'pr_comments_index': params['project_pulls2_index']
+                }
+                params[f"metrics_group_activity_params_for_{level}"] = metrics_cfg
+                model_codequality = OrganizationsActivityMetricsModel(**metrics_cfg['params'])
+                model_codequality.metrics_model_metrics(metrics_cfg['url'])
+                params['metrics_group_activity_finished_at'] = datetime.now()
+    else:
+        params['metrics_group_activity_finished_at'] = 'skipped'
+    return params
+
+
 @task(name="etl_v1.notify", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def notify(*args, **kwargs):
     params = args[0][0]
@@ -564,8 +622,8 @@ def notify(*args, **kwargs):
     if validate_callback(callback):
         callback['params']['password'] = config.get('HOOK_PASS')
         callback['params']['domain'] = params['domain_name']
-        callback['params']['result'] = { 'status': True, 'message':  f"{target} analysis task finished successfully"}
+        callback['params']['result'] = {'status': True, 'message': f"{target} analysis task finished successfully"}
         resp = requests.post(callback['hook_url'], json=callback['params'])
-        return { 'status': True, 'code': resp.status_code, 'message': resp.text }
+        return {'status': True, 'code': resp.status_code, 'message': resp.text}
     else:
-        return { 'status': False, 'message': 'no callback' }
+        return {'status': False, 'message': 'no callback'}
