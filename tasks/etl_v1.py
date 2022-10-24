@@ -219,7 +219,7 @@ def initialize_group(*args, **kwargs):
                 url = tools.normalize_url(project_url)
                 key = tools.normalize_key(project_url)
                 project_data = tools.gen_project_section(project_data, domain_name, key, url)
-        if project_type == 'community-projects':
+        if project_type == 'community-projects' or project_type == 'governance-projects':
             urls = project_info['data_sources']['repo_names']
             community_metrics_data[f"{name}"] = {}
             community_metrics_data[f"{name}"][domain_name] = urls
