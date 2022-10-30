@@ -24,7 +24,6 @@ DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
 CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
-COMMUNITY_JSON_NAME = 'community.json'
 SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
 
 
@@ -69,7 +68,7 @@ def validate_callback(callback):
 #     "metrics_group_activity":true,
 #     "debug":false,
 #     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/main/organizations/EAF.yml",
-#     "level":"project",
+#     "level":"community",
 #     "callback": {
 #       "hook_url": "http://106.13.250.196:3000/api/hook",
 #       "params": {},
@@ -80,6 +79,7 @@ def validate_callback(callback):
 def extract(self, *args, **kwargs):
     payload = kwargs['payload']
     url = payload['project_url']
+    level = payload.get('level')
     params = {}
     params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
     params['callback'] = callback = payload.get('callback')
@@ -104,7 +104,7 @@ def extract(self, *args, **kwargs):
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
     params['panels'] = bool(payload.get('panels'))
-    params['level'] = ('project' if payload.get('level') == 'project' else 'repo')
+    params['level'] = ('community' if level == 'project' or level == 'community'  else 'repo')
     params['debug'] = bool(payload.get('debug'))
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
@@ -118,6 +118,7 @@ def extract(self, *args, **kwargs):
 def extract_group(self, *args, **kwargs):
     payload = kwargs['payload']
     url = payload['project_template_yaml']
+    level = payload.get('level')
     params = {}
     params['scheme'], params['domain'], params['path'] = tools.extract_url_info(url)
     params['callback'] = callback = payload.get('callback')
@@ -132,8 +133,8 @@ def extract_group(self, *args, **kwargs):
     project_yaml_url = tools.normalize_url(url)
     params['project_yaml_url'] = project_yaml_url
     params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
-    params['project_key'] = params['project_yaml']['organization_name']
-    params['project_types'] = params['project_yaml']['project_types']
+    params['project_key'] = params['project_yaml']['community_name']
+    params['project_types'] = params['project_yaml']['resource_types']
     params['domain_name'] = tools.extract_domain(url)
     params['project_hash'] = tools.hash_string(params['project_yaml_url'])
     params['raw'] = bool(payload.get('raw'))
@@ -141,7 +142,7 @@ def extract_group(self, *args, **kwargs):
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
     params['panels'] = bool(payload.get('panels'))
-    params['level'] = ('project' if payload.get('level') == 'project' else 'repo')
+    params['level'] = ('community' if level == 'project' or level == 'community'  else 'repo')
     params['debug'] = bool(payload.get('debug'))
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
@@ -206,23 +207,17 @@ def initialize_group(*args, **kwargs):
 
     project_data = {}
     metrics_data = {}
-    community_metrics_data = {}
     name = params['project_key']
     domain_name = params['domain_name']
 
     for (project_type, project_info) in params['project_types'].items():
-        if project_type == 'software-artifact-projects':
-            urls = project_info['data_sources']['repo_names']
+        if project_type == 'software-artifact-resources' or \
+           project_type == 'governance-resources' or \
+           project_type == 'software-artifact-projects' or \
+           project_type == 'governance-projects':
+            urls = project_info['repo_urls']
             metrics_data[f"{name}"] = {}
             metrics_data[f"{name}"][domain_name] = urls
-            for project_url in urls:
-                url = tools.normalize_url(project_url)
-                key = tools.normalize_key(project_url)
-                project_data = tools.gen_project_section(project_data, domain_name, key, url)
-        if project_type == 'community-projects' or project_type == 'governance-projects':
-            urls = project_info['data_sources']['repo_names']
-            community_metrics_data[f"{name}"] = {}
-            community_metrics_data[f"{name}"][domain_name] = urls
             for project_url in urls:
                 url = tools.normalize_url(project_url)
                 key = tools.normalize_key(project_url)
@@ -232,20 +227,13 @@ def initialize_group(*args, **kwargs):
     with open(project_data_path, 'w') as f:
         json.dump(project_data, f, indent=4, sort_keys=True)
 
-    if len(metrics_data) > 0:
-        metrics_data_path = join(metrics_dir, JSON_NAME)
-        with open(metrics_data_path, 'w') as jsonfile:
-            json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
-            params['metrics_data_path'] = metrics_data_path
-
-    if len(community_metrics_data) > 0:
-        community_metrics_data_path = join(metrics_dir, COMMUNITY_JSON_NAME)
-        with open(community_metrics_data_path, 'w') as jsonfile:
-            json.dump(community_metrics_data, jsonfile, indent=4, sort_keys=True)
-            params['community_metrics_data_path'] = community_metrics_data_path
+    metrics_data_path = join(metrics_dir, JSON_NAME)
+    with open(metrics_data_path, 'w') as jsonfile:
+        json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
 
     config_logging(params['debug'], logs_dir, False)
 
+    params['metrics_data_path'] = metrics_data_path
     params['project_configs_dir'] = configs_dir
     params['project_logs_dir'] = logs_dir
     params['project_metrics_dir'] = metrics_dir
@@ -467,34 +455,28 @@ def metrics_activity(*args, **kwargs):
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_activity_started_at'] = datetime.now()
-    metrics_params = {
-        'project': params.get('metrics_data_path'),
-        'community': params.get('community_metrics_data_path')
-    }
+
     if params['metrics_activity']:
-        for (level, metrics_json_path) in metrics_params.items():
-            level = params['level'] if params['level'] == 'repo' else level
-            if metrics_json_path:
-                metrics_cfg = {}
-                metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] = {
-                    'issue_index': params['project_issues_index'],
-                    'pr_index': params['project_pulls_index'],
-                    'release_index': params['project_release_index'],
-                    'json_file': metrics_json_path,
-                    'git_index': params['project_git_index'],
-                    'from_date': config.get('METRICS_FROM_DATE'),
-                    'end_date': datetime.now().strftime('%Y-%m-%d'),
-                    'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
-                    'community': project_key,
-                    'level': level,
-                    'issue_comments_index': params['project_issues2_index'],
-                    'pr_comments_index': params['project_pulls2_index']
-                }
-                params[f"metrics_activity_params_for_{level}"] = metrics_cfg
-                model_activity = ActivityMetricsModel(**metrics_cfg['params'])
-                model_activity.metrics_model_metrics(metrics_cfg['url'])
-                params['metrics_activity_finished_at'] = datetime.now()
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'release_index': params['project_release_index'],
+            'json_file': params['metrics_data_path'],
+            'git_index': params['project_git_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
+            'community': project_key,
+            'level': params['level'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index']
+        }
+        params[f"metrics_activity_params"] = metrics_cfg
+        model_activity = ActivityMetricsModel(**metrics_cfg['params'])
+        model_activity.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_activity_finished_at'] = datetime.now()
     else:
         params['metrics_activity_finished_at'] = 'skipped'
     return params
@@ -506,31 +488,25 @@ def metrics_community(*args, **kwargs):
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_community_started_at'] = datetime.now()
-    metrics_params = {
-        'project': params.get('metrics_data_path'),
-        'community': params.get('community_metrics_data_path')
-    }
+
     if params['metrics_community']:
-        for (level, metrics_json_path) in metrics_params.items():
-            level = params['level'] if params['level'] == 'repo' else level
-            if metrics_json_path:
-                metrics_cfg = {}
-                metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] = {
-                    'issue_index': params['project_issues_index'],
-                    'pr_index': params['project_pulls_index'],
-                    'json_file': metrics_json_path,
-                    'git_index': params['project_git_index'],
-                    'from_date': config.get('METRICS_FROM_DATE'),
-                    'end_date': datetime.now().strftime('%Y-%m-%d'),
-                    'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
-                    'community': project_key,
-                    'level': level
-                }
-                params[f"metrics_community_params_for_{level}"] = metrics_cfg
-                model_community = CommunitySupportMetricsModel(**metrics_cfg['params'])
-                model_community.metrics_model_metrics(metrics_cfg['url'])
-                params['metrics_community_finished_at'] = datetime.now()
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'json_file': params['metrics_data_path'],
+            'git_index': params['project_git_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
+            'community': project_key,
+            'level': params['level']
+        }
+        params[f"metrics_community_params"] = metrics_cfg
+        model_community = CommunitySupportMetricsModel(**metrics_cfg['params'])
+        model_community.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_community_finished_at'] = datetime.now()
     else:
         params['metrics_community_finished_at'] = 'skipped'
     return params
@@ -542,33 +518,27 @@ def metrics_codequality(*args, **kwargs):
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_codequality_started_at'] = datetime.now()
-    metrics_params = {
-        'project': params.get('metrics_data_path'),
-        'community': params.get('community_metrics_data_path')
-    }
+
     if params['metrics_codequality']:
-        for (level, metrics_json_path) in metrics_params.items():
-            level = params['level'] if params['level'] == 'repo' else level
-            if metrics_json_path:
-                metrics_cfg = {}
-                metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] = {
-                    'issue_index': params['project_issues_index'],
-                    'pr_index': params['project_pulls_index'],
-                    'json_file': metrics_json_path,
-                    'git_index': params['project_git_index'],
-                    'from_date': config.get('METRICS_FROM_DATE'),
-                    'end_date': datetime.now().strftime('%Y-%m-%d'),
-                    'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
-                    'community': project_key,
-                    'level': level,
-                    'company': None,
-                    'pr_comments_index': params['project_pulls2_index']
-                }
-                params[f"metrics_codequality_params_for_{level}"] = metrics_cfg
-                model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
-                model_codequality.metrics_model_metrics(metrics_cfg['url'])
-                params['metrics_codequality_finished_at'] = datetime.now()
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'json_file': params['metrics_data_path'],
+            'git_index': params['project_git_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
+            'community': project_key,
+            'level': params['level'],
+            'company': None,
+            'pr_comments_index': params['project_pulls2_index']
+        }
+        params[f"metrics_codequality_params"] = metrics_cfg
+        model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
+        model_codequality.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_codequality_finished_at'] = datetime.now()
     else:
         params['metrics_codequality_finished_at'] = 'skipped'
     return params
@@ -580,35 +550,29 @@ def metrics_group_activity(*args, **kwargs):
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_metrics_group_activity_started_at'] = datetime.now()
-    metrics_params = {
-        'project': params.get('metrics_data_path'),
-        'community': params.get('community_metrics_data_path')
-    }
+
     if params['metrics_group_activity']:
-        for (level, metrics_json_path) in metrics_params.items():
-            level = params['level'] if params['level'] == 'repo' else level
-            if metrics_json_path:
-                metrics_cfg = {}
-                metrics_cfg['url'] = config.get('ES_URL')
-                metrics_cfg['params'] = {
-                    'issue_index': params['project_issues_index'],
-                    'pr_index': params['project_pulls_index'],
-                    'repo_index': params['project_repo_index'],
-                    'json_file': metrics_json_path,
-                    'git_index': params['project_git_index'],
-                    'from_date': config.get('METRICS_FROM_DATE'),
-                    'end_date': datetime.now().strftime('%Y-%m-%d'),
-                    'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
-                    'community': project_key,
-                    'level': level,
-                    'company': None,
-                    'issue_comments_index': params['project_issues2_index'],
-                    'pr_comments_index': params['project_pulls2_index']
-                }
-                params[f"metrics_group_activity_params_for_{level}"] = metrics_cfg
-                model_codequality = OrganizationsActivityMetricsModel(**metrics_cfg['params'])
-                model_codequality.metrics_model_metrics(metrics_cfg['url'])
-                params['metrics_group_activity_finished_at'] = datetime.now()
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'repo_index': params['project_repo_index'],
+            'json_file': params['metrics_data_path'],
+            'git_index': params['project_git_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
+            'community': project_key,
+            'level': params['level'],
+            'company': None,
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index']
+        }
+        params[f"metrics_group_activity_params"] = metrics_cfg
+        model_codequality = OrganizationsActivityMetricsModel(**metrics_cfg['params'])
+        model_codequality.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_group_activity_finished_at'] = datetime.now()
     else:
         params['metrics_group_activity_finished_at'] = 'skipped'
     return params
