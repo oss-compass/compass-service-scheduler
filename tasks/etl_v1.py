@@ -104,7 +104,7 @@ def extract(self, *args, **kwargs):
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
     params['panels'] = bool(payload.get('panels'))
-    params['level'] = ('community' if level == 'project' or level == 'community'  else 'repo')
+    params['level'] = ('community' if level == 'project' or level == 'community' else 'repo')
     params['debug'] = bool(payload.get('debug'))
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
@@ -142,7 +142,7 @@ def extract_group(self, *args, **kwargs):
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
     params['panels'] = bool(payload.get('panels'))
-    params['level'] = ('community' if level == 'project' or level == 'community'  else 'repo')
+    params['level'] = ('community' if level == 'project' or level == 'community' else 'repo')
     params['debug'] = bool(payload.get('debug'))
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
@@ -209,16 +209,23 @@ def initialize_group(*args, **kwargs):
     metrics_data = {}
     name = params['project_key']
     domain_name = params['domain_name']
-
+    metrics_data[name] = {}
     for (project_type, project_info) in params['project_types'].items():
-        if project_type == 'software-artifact-resources' or \
+        suffix = None
+        if project_type == 'software-artifact-repositories' or \
+           project_type == 'software-artifact-resources' or \
+           project_type == 'software-artifact-projects':
+            suffix = 'software-artifact'
+        if project_type == 'governance-repositories' or \
            project_type == 'governance-resources' or \
-           project_type == 'software-artifact-projects' or \
            project_type == 'governance-projects':
+            suffix = 'governance'
+        if suffix:
             urls = project_info['repo_urls']
-            metrics_data[f"{name}"] = {}
-            metrics_data[f"{name}"][domain_name] = urls
+            metrics_data[name][f"{domain_name}-{suffix}"] = list(filter(lambda url: tools.url_is_valid(url), urls))
             for project_url in urls:
+                if not tools.url_is_valid(project_url):
+                    continue
                 url = tools.normalize_url(project_url)
                 key = tools.normalize_key(project_url)
                 project_data = tools.gen_project_section(project_data, domain_name, key, url)
@@ -456,7 +463,7 @@ def metrics_activity(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_activity_started_at'] = datetime.now()
 
-    if params['metrics_activity']:
+    if params.get('metrics_activity'):
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -473,7 +480,7 @@ def metrics_activity(*args, **kwargs):
             'issue_comments_index': params['project_issues2_index'],
             'pr_comments_index': params['project_pulls2_index']
         }
-        params[f"metrics_activity_params"] = metrics_cfg
+        params["metrics_activity_params"] = metrics_cfg
         model_activity = ActivityMetricsModel(**metrics_cfg['params'])
         model_activity.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_activity_finished_at'] = datetime.now()
@@ -489,7 +496,7 @@ def metrics_community(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_community_started_at'] = datetime.now()
 
-    if params['metrics_community']:
+    if params.get('metrics_community'):
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -503,7 +510,7 @@ def metrics_community(*args, **kwargs):
             'community': project_key,
             'level': params['level']
         }
-        params[f"metrics_community_params"] = metrics_cfg
+        params["metrics_community_params"] = metrics_cfg
         model_community = CommunitySupportMetricsModel(**metrics_cfg['params'])
         model_community.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_community_finished_at'] = datetime.now()
@@ -519,7 +526,7 @@ def metrics_codequality(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_codequality_started_at'] = datetime.now()
 
-    if params['metrics_codequality']:
+    if params.get('metrics_codequality'):
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -535,7 +542,7 @@ def metrics_codequality(*args, **kwargs):
             'company': None,
             'pr_comments_index': params['project_pulls2_index']
         }
-        params[f"metrics_codequality_params"] = metrics_cfg
+        params["metrics_codequality_params"] = metrics_cfg
         model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
         model_codequality.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_codequality_finished_at'] = datetime.now()
@@ -551,7 +558,7 @@ def metrics_group_activity(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['metrics_metrics_group_activity_started_at'] = datetime.now()
 
-    if params['metrics_group_activity']:
+    if params.get('metrics_group_activity'):
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {

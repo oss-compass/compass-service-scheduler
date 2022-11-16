@@ -2,6 +2,7 @@ import requests
 import tldextract
 import yaml
 import hashlib
+import re
 
 from director import task, config
 from urllib.parse import urlparse
@@ -31,6 +32,16 @@ def hash_string(string):
     h = hashlib.new('sha256')
     h.update(bytes(string, encoding='utf-8'))
     return h.hexdigest()
+
+def url_is_valid(url):
+    regex = re.compile(
+        r'^(?:http|ftp)s?://' # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+        r'localhost|' #localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+        r'(?::\d+)?' # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    return re.match(regex, url) is not None
 
 def gen_project_section(project_data, domain_name, key, url):
     if domain_name == 'gitee':
