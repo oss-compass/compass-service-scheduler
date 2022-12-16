@@ -27,10 +27,12 @@ def config_logging(debug, logs_dir, append=True):
     # Creating a file handler and adding it to root
     if logs_dir:
         fh_filepath = os.path.join(logs_dir, 'all.log')
-        fh = logging.FileHandler(fh_filepath, mode=('a' if append else 'w'))
+        fh = logging.handlers.RotatingFileHandler(fh_filepath, mode=('a' if append else 'w'), maxBytes=(50 * 1024), backupCount=5)
         fh.setLevel(logging_mode)
         formatter = logging.Formatter(fmt)
         fh.setFormatter(formatter)
+        logging.getLogger().handlers.clear()
+        logging.getLogger().addHandler(stream)
         logging.getLogger().addHandler(fh)
 
     # ES logger is set to INFO since, it produces a really verbose output if set to DEBUG

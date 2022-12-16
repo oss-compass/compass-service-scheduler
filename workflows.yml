@@ -37,3 +37,16 @@ insight.ETL_V1_GROUP:
     - etl_v1.notify
   queue: analyze_queue_v2
 
+insight.SUMMARY_V1:
+  tasks:
+    - summary_v1.initialize
+    - GROUP_1:
+        type: group
+        tasks:
+          - summary_v1.sum.activtiy
+          - summary_v1.sum.community
+          - summary_v1.sum.codequality
+          - summary_v1.sum.group_activity_summary
+  queue: summary_queue_v1
+  periodic:
+    crontab: "0 12 * * 6"
