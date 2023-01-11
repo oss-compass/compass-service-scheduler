@@ -1,7 +1,7 @@
 from director import task, config
 
 import os
-
+import time
 import json
 import configparser
 import requests
@@ -110,6 +110,7 @@ def extract(self, *args, **kwargs):
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
+    params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
 
     return params
 
@@ -455,6 +456,13 @@ def panels(*args, **kwargs):
         params['panels_finished_at'] = 'skipped'
     return params
 
+@task(name="etl_v1.sleep", acks_late=True)
+def sleep(*args, **kwargs):
+    params = args[0]
+    if params['sleep_for_waiting']:
+        time.sleep(params['sleep_for_waiting'])
+    return params
+
 
 @task(name="etl_v1.metrics.activity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_activity(*args, **kwargs):
@@ -468,15 +476,17 @@ def metrics_activity(*args, **kwargs):
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
             'issue_index': params['project_issues_index'],
+            'repo_index': params['project_repo_index'],
             'pr_index': params['project_pulls_index'],
-            'release_index': params['project_release_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
+            'git_branch': None,
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
             'community': project_key,
             'level': params['level'],
+            'release_index': params['project_release_index'],
             'issue_comments_index': params['project_issues2_index'],
             'pr_comments_index': params['project_pulls2_index']
         }
@@ -502,11 +512,11 @@ def metrics_community(*args, **kwargs):
         metrics_cfg['params'] = {
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
-            'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
+            'json_file': params['metrics_data_path'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
             'community': project_key,
             'level': params['level']
         }
@@ -532,11 +542,13 @@ def metrics_codequality(*args, **kwargs):
         metrics_cfg['params'] = {
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
+            'repo_index': params['project_repo_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
+            'git_branch': None,
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
             'community': project_key,
             'level': params['level'],
             'company': None,
@@ -563,13 +575,14 @@ def metrics_group_activity(*args, **kwargs):
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
             'issue_index': params['project_issues_index'],
-            'pr_index': params['project_pulls_index'],
             'repo_index': params['project_repo_index'],
+            'pr_index': params['project_pulls_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
+            'git_branch': None,
             'from_date': config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
             'community': project_key,
             'level': params['level'],
             'company': None,
