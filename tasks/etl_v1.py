@@ -149,6 +149,8 @@ def extract_group(self, *args, **kwargs):
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
+    params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
+
     return params
 
 
@@ -460,7 +462,7 @@ def panels(*args, **kwargs):
 @task(name="etl_v1.sleep", acks_late=True)
 def sleep(*args, **kwargs):
     params = args[0]
-    if params['sleep_for_waiting']:
+    if params.get('sleep_for_waiting'):
         time.sleep(params['sleep_for_waiting'])
     return params
 
