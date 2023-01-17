@@ -5,6 +5,7 @@ import time
 import json
 import configparser
 import requests
+import urllib.parse
 
 from os.path import join, exists, abspath
 from datetime import datetime
@@ -603,10 +604,18 @@ def notify(*args, **kwargs):
     params = args[0][0]
     callback = params['callback']
     target = params.get('project_url') or params.get('project_key')
+    level = params.get('level') or 'repo'
+    domain_name = params.get('domain_name')
     if validate_callback(callback):
+        label = urllib.parse.quote(target, safe='')
+        compass_host = "https://oss-compass.org"
+        if domain_name == 'gitee':
+            compass_host = "https://compass.gitee.com"
+        report_url = f"{compass_host}/analyze?label={label}&level={level}"
         callback['params']['password'] = config.get('HOOK_PASS')
         callback['params']['domain'] = params['domain_name']
-        callback['params']['result'] = {'status': True, 'message': f"{target} analysis task finished successfully"}
+        callback['params']['result'] = {'status': True, 'message': f"The analysis you submitted has been completed, and the address of the analysis report is:
+Report Link: {report_url}"}
         resp = requests.post(callback['hook_url'], json=callback['params'])
         return {'status': True, 'code': resp.status_code, 'message': resp.text}
     else:
