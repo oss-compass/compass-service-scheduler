@@ -6,9 +6,8 @@ insight.ETL_V1:
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
-    - etl_v1.identities
     - etl_v1.enrich
-    - etl_v1.sleep
+    - etl_v1.contributors_refresh
     - GROUP_1:
         type: group
         tasks:
@@ -26,9 +25,8 @@ insight.ETL_V1_GROUP:
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
-    - etl_v1.identities
     - etl_v1.enrich
-    - etl_v1.sleep
+    - etl_v1.contributors_refresh
     - GROUP_1:
         type: group
         tasks:

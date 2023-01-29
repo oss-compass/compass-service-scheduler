@@ -21,6 +21,8 @@ from compass_metrics_model.metrics_model import (
     OrganizationsActivityMetricsModel
 )
 
+from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
+
 DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
 CFG_TEMPLATE = 'setup-template.cfg'
@@ -289,6 +291,8 @@ def setup(*args, **kwargs):
 
     input_enrich_releases_index = f"{domain_name}-releases_enriched"
 
+    input_refresh_contributors_index = f"{domain_name}-contributors_org_repo"
+
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
@@ -369,6 +373,7 @@ def setup(*args, **kwargs):
     params['project_git_index'] = input_git_enriched_index
     params['project_repo_index'] = input_repo_enriched_index
     params['project_release_index'] = input_enrich_releases_index
+    params['project_contributors_index'] = input_refresh_contributors_index
     return params
 
 
@@ -466,6 +471,36 @@ def sleep(*args, **kwargs):
         time.sleep(params['sleep_for_waiting'])
     return params
 
+@task(name="etl_v1.contributors_refresh", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def contributors_refresh(*args, **kwargs):
+    params = args[0]
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['contributors_refresh_started_at'] = datetime.now()
+    if params['identities_load'] or params['identities_merge']:
+        params['contributors_refresh_finished_at'] = datetime.now()
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'json_file': params['metrics_data_path'],
+            'identities_config_file': config.get('IDENTITIES_CONFIG_FILE'),
+            'organizations_config_file': config.get('ORGANIZATIONS_CONFIG_FILE'),
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'git_index': params['project_git_index'],
+            'contributors_index': params['project_contributors_index'],
+            'from_date': config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'company': None
+        }
+        params["contributors_refresh_params"] = metrics_cfg
+        contributor_refresh = ContributorDevOrgRepo(**metrics_cfg['params'])
+        contributor_refresh.run(metrics_cfg['url'])
+    else:
+        params['contributors_refresh_finished_at'] = 'skipped'
+    return params
+
 
 @task(name="etl_v1.metrics.activity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_activity(*args, **kwargs):
@@ -491,7 +526,8 @@ def metrics_activity(*args, **kwargs):
             'level': params['level'],
             'release_index': params['project_release_index'],
             'issue_comments_index': params['project_issues2_index'],
-            'pr_comments_index': params['project_pulls2_index']
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index']
         }
         params["metrics_activity_params"] = metrics_cfg
         model_activity = ActivityMetricsModel(**metrics_cfg['params'])
@@ -590,7 +626,8 @@ def metrics_group_activity(*args, **kwargs):
             'level': params['level'],
             'company': None,
             'issue_comments_index': params['project_issues2_index'],
-            'pr_comments_index': params['project_pulls2_index']
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index']
         }
         params[f"metrics_group_activity_params"] = metrics_cfg
         model_codequality = OrganizationsActivityMetricsModel(**metrics_cfg['params'])
