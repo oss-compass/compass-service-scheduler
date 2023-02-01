@@ -8,11 +8,14 @@ import requests
 import urllib.parse
 
 from os.path import join, exists, abspath
+from urllib.parse import urlparse
 from datetime import datetime
 
 from . import config_logging
 from ..utils import tools
 from sirmordred.utils.micro import micro_mordred
+
+from elasticsearch import Elasticsearch, RequestsHttpConnection
 
 from compass_metrics_model.metrics_model import (
     ActivityMetricsModel,
@@ -114,6 +117,7 @@ def extract(self, *args, **kwargs):
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
+    params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
 
     return params
 
@@ -399,6 +403,39 @@ def raw(*args, **kwargs):
     return params
 
 
+@task(name="etl_v1.expire_enriched", autoretry_for=(Exception,), acks_late=True)
+def expire_enriched(*args, **kwargs):
+    params = args[0]
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['force_refresh_enriched_started_at'] = datetime.now()
+    if params.get('force_refresh_enriched'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection)
+        repo_url = params['project_url']
+        for index in [
+                'project_git_index',
+                'project_issues_index',
+                'project_issues2_index',
+                'project_pulls_index',
+                'project_pulls2_index'
+        ]:
+            body = {
+                "query": {
+                    "match": {
+                        "tag": f"{repo_url}.git" if 'git' in index else repo_url
+                    }
+                }
+            }
+            es_client.delete_by_query(index=params[index], body=body)
+        params['force_refresh_enriched_finished_at'] = datetime.now()
+    else:
+        params['force_refresh_enriched_finished_at'] = 'skipped'
+
+    return params
+
+
 @task(name="etl_v1.enrich", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
 def enrich(*args, **kwargs):
     params = args[0]
@@ -470,6 +507,7 @@ def sleep(*args, **kwargs):
     if params.get('sleep_for_waiting'):
         time.sleep(params['sleep_for_waiting'])
     return params
+
 
 @task(name="etl_v1.contributors_refresh", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def contributors_refresh(*args, **kwargs):
