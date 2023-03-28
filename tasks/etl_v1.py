@@ -515,7 +515,6 @@ def contributors_refresh(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['contributors_refresh_started_at'] = datetime.now()
     if params['identities_load'] or params['identities_merge']:
-        params['contributors_refresh_finished_at'] = datetime.now()
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -535,6 +534,7 @@ def contributors_refresh(*args, **kwargs):
         params["contributors_refresh_params"] = metrics_cfg
         contributor_refresh = ContributorDevOrgRepo(**metrics_cfg['params'])
         contributor_refresh.run(metrics_cfg['url'])
+        params['contributors_refresh_finished_at'] = datetime.now()
     else:
         params['contributors_refresh_finished_at'] = 'skipped'
     return params
@@ -645,7 +645,7 @@ def metrics_group_activity(*args, **kwargs):
     params = args[0]
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
-    params['metrics_metrics_group_activity_started_at'] = datetime.now()
+    params['metrics_group_activity_started_at'] = datetime.now()
 
     if params.get('metrics_group_activity'):
         metrics_cfg = {}
