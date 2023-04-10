@@ -314,7 +314,8 @@ def setup(*args, **kwargs):
     }
 
     issues2_cfg = {
-        'raw_index': input_raw_issues2_index,
+        'collect': 'false',
+        'raw_index': input_raw_issues_index,
         'enriched_index': input_enrich_issues2_index,
         'category': 'issue',
         'sleep-for-rate': 'true',
@@ -330,7 +331,8 @@ def setup(*args, **kwargs):
     }
 
     pulls2_cfg = {
-        'raw_index': input_raw_pulls2_index,
+        'collect': 'false',
+        'raw_index': input_raw_pulls_index,
         'enriched_index': input_enrich_pulls2_index,
         'category': 'pull_request',
         'sleep-for-rate': 'true',
