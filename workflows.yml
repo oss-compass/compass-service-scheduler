@@ -49,3 +49,20 @@ insight.SUMMARY_V1:
           - summary_v1.sum.codequality
           - summary_v1.sum.group_activity_summary
   queue: summary_queue_v1
+
+
+insight.LAB_V1:
+  tasks:
+    - lab_v1.extract
+    - etl_v1.initialize
+    - etl_v1.setup
+    - etl_v1.panels
+    - etl_v1.raw
+    - etl_v1.expire_enriched
+    - etl_v1.enrich
+    - etl_v1.contributors_refresh
+    - GROUP_1:
+        type: group
+        tasks:
+          - lab_v1.metrics.starter_project_health
+  queue: lab_queue_v1
