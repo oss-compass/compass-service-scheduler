@@ -523,6 +523,7 @@ def contributors_refresh(*args, **kwargs):
             'json_file': params['metrics_data_path'],
             'identities_config_file': config.get('IDENTITIES_CONFIG_FILE'),
             'organizations_config_file': config.get('ORGANIZATIONS_CONFIG_FILE'),
+            'bots_config_file': config.get('BOTS_CONFIG_FILE'),
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
             'issue_comments_index': params['project_issues2_index'],
@@ -631,7 +632,8 @@ def metrics_codequality(*args, **kwargs):
             'community': project_key,
             'level': params['level'],
             'company': None,
-            'pr_comments_index': params['project_pulls2_index']
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index']
         }
         params["metrics_codequality_params"] = metrics_cfg
         model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
