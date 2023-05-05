@@ -155,6 +155,7 @@ def extract_group(self, *args, **kwargs):
     params['metrics_activity'] = bool(payload.get('metrics_activity'))
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
+    params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
 
     return params
