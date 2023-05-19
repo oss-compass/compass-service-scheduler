@@ -7,6 +7,31 @@ import re
 from director import task, config
 from urllib.parse import urlparse
 
+import pika
+import json
+import traceback
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+def basic_publish(queue, message, url_params):
+    params = pika.URLParameters(url_params)
+    params.socket_timeout = 15
+    connection = None
+    try:
+        connection = pika.BlockingConnection(params)  # Connect to CloudAMQP
+        channel = connection.channel()
+        channel.basic_publish(exchange='', routing_key=queue,
+                              body=json.dumps(message))
+    except Exception as e:
+        output = traceback.format_exc()
+        logger.warning(f"Exception while sending a message to the bot: {output}")
+        raise e
+    finally:
+        if connection:
+            connection.close()
+
 def extract_url_info(url):
     uri = urlparse(url)
     return uri.scheme, uri.netloc, uri.path
@@ -73,3 +98,24 @@ def load_yaml_template(url):
         return yaml.safe_load(requests.get(url, allow_redirects=True).text)
     else:
         return yaml.safe_load(requests.get(url, allow_redirects=True, proxies=proxies).text)
+
+
+def count_repos(yaml):
+    count = 0
+    for (project_type, project_info) in yaml['resource_types'].items():
+        suffix = None
+        if project_type == 'software-artifact-repositories' or \
+           project_type == 'software-artifact-resources' or \
+           project_type == 'software-artifact-projects':
+            suffix = 'software-artifact'
+        if project_type == 'governance-repositories' or \
+           project_type == 'governance-resources' or \
+           project_type == 'governance-projects':
+            suffix = 'governance'
+        if suffix:
+            urls = project_info['repo_urls']
+            for project_url in urls:
+                if not tools.url_is_valid(project_url):
+                    continue
+                count += 1
+    return count

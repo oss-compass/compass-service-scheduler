@@ -41,6 +41,7 @@ def validate_callback(callback):
            type(callback['hook_url']) == str:
             return True
     return False
+
 # #Repository Example:
 # {
 #     "raw":true,
@@ -257,6 +258,20 @@ def initialize_group(*args, **kwargs):
     params['project_metrics_dir'] = metrics_dir
     params['project_data_path'] = project_data_path
 
+    return params
+
+
+@task(name="etl_v1.start", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
+def start(*args, **kwargs):
+    params = args[0]
+    message = {
+        'name': params['project_url'],
+        'level': params['level'],
+        'status': 'progress',
+        'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
+        'status_updated_at': datetime.isoformat(datetime.now())
+    }
+    tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
     return params
 
 @task(name="etl_v1.setup")
@@ -680,6 +695,19 @@ def metrics_group_activity(*args, **kwargs):
         params['metrics_group_activity_finished_at'] = 'skipped'
     return params
 
+
+@task(name="etl_v1.finish", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
+def finish(*args, **kwargs):
+    params = args[0]
+    message = {
+        'name': params['project_url'],
+        'level': params['level'],
+        'status': 'complete',
+        'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
+        'status_updated_at': datetime.isoformat(datetime.now())
+    }
+    tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
+    return params
 
 @task(name="etl_v1.notify", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def notify(*args, **kwargs):

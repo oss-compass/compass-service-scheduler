@@ -3,6 +3,7 @@ insight.ETL_V1:
   tasks:
     - etl_v1.extract
     - etl_v1.initialize
+    - etl_v1.start
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
@@ -16,6 +17,7 @@ insight.ETL_V1:
           - etl_v1.metrics.community
           - etl_v1.metrics.codequality
           - etl_v1.metrics.group_activity
+    - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1
 
@@ -23,6 +25,7 @@ insight.ETL_V1_GROUP:
   tasks:
     - etl_v1.extract_group
     - etl_v1.initialize_group
+    - etl_v1.start
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
@@ -35,6 +38,7 @@ insight.ETL_V1_GROUP:
           - etl_v1.metrics.community
           - etl_v1.metrics.codequality
           - etl_v1.metrics.group_activity
+    - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v2
 
