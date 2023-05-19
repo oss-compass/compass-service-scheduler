@@ -698,7 +698,7 @@ def metrics_group_activity(*args, **kwargs):
 
 @task(name="etl_v1.finish", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
 def finish(*args, **kwargs):
-    params = args[0]
+    params = args[0][0] if type(args[0]) == list else args[0]
     message = {
         'name': params['project_url'],
         'level': params['level'],
@@ -711,7 +711,7 @@ def finish(*args, **kwargs):
 
 @task(name="etl_v1.notify", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def notify(*args, **kwargs):
-    params = args[0][0]
+    params = args[0][0] if type(args[0]) == list else args[0]
     callback = params['callback']
     target = params.get('project_url') or params.get('project_key')
     level = params.get('level') or 'repo'
