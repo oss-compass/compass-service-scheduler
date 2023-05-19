@@ -115,7 +115,7 @@ def count_repos(yaml):
         if suffix:
             urls = project_info['repo_urls']
             for project_url in urls:
-                if not tools.url_is_valid(project_url):
+                if not url_is_valid(project_url):
                     continue
                 count += 1
     return count
