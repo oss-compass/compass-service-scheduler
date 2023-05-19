@@ -38,6 +38,20 @@ insight.ETL_V1_GROUP:
     - etl_v1.notify
   queue: analyze_queue_v2
 
+# insight.CUSTOM_V1:
+#   tasks:
+#     - custom_v1.extract
+#     - custom_v1.initialize
+#     - custom_v1.setup
+#     - GROUP_1:
+#         type: group
+#         tasks:
+#           - custom_v1.metrics.activity
+#           - custom_v1.metrics.community
+#           - custom_v1.metrics.codequality
+#           - custom_v1.metrics.group_activity
+#   queue: custom_queue_v1
+
 insight.SUMMARY_V1:
   tasks:
     - summary_v1.initialize
