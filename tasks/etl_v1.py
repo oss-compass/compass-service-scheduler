@@ -270,7 +270,7 @@ def start(*args, **kwargs):
         'level': params['level'],
         'status': 'progress',
         'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
-        'status_updated_at': datetime.isoformat(datetime.now())
+        'status_updated_at': datetime.isoformat(datetime.utcnow())
     }
     tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
     return params
@@ -706,7 +706,7 @@ def finish(*args, **kwargs):
         'level': params['level'],
         'status': 'complete',
         'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
-        'status_updated_at': datetime.isoformat(datetime.now())
+        'status_updated_at': datetime.isoformat(datetime.utcnow())
     }
     tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
     return params
