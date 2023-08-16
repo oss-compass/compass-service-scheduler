@@ -1,0 +1,55 @@
+{
+  "project_urls": [
+    "https://github.com/manateelazycat/lsp-bridge",
+    "https://gitee.com/ld/J2Cache",
+    "https://gitee.com/jfinal/jfinal",
+    "https://github.com/istio/istio"
+  ],
+  "level": "repo",
+  "metrics_weights_thresholds": {
+    "created_since": {
+      "threshold":120,
+      "weight": 0.5
+    },
+    "updated_since": {
+      "threshold":0.25,
+      "weight": 0.5
+    }
+  },
+  "custom_fields": {
+    "owner_id": 12,
+    "model_id": 31,
+    "public": 1,
+    "version_id": 14
+  },
+  "algorithm": "criticality_score",
+  "debug": true
+}
+
+{
+  "project_urls": [
+    "https://github.com/manateelazycat/lsp-bridge",
+    "https://gitee.com/ld/J2Cache",
+    "https://gitee.com/jfinal/jfinal",
+    "https://github.com/istio/istio"
+  ],
+  "level": "repo",
+  "metrics_weights_thresholds": {
+    "created_since": {
+      "threshold":120,
+      "weight": 0.5
+    },
+    "updated_since": {
+      "threshold":0.25,
+      "weight": 0.5
+    }
+  },
+  "custom_fields": {
+    "owner_id": 12,
+    "model_id": 31,
+    "public": 1,
+    "version_id": 14
+  },
+  "algorithm": "criticality_score",
+  "debug": true
+}
