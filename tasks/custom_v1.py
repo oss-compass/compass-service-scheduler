@@ -2,6 +2,7 @@ from director import task, config
 
 import os
 import json
+import configparser
 
 from os.path import join, exists, abspath
 from urllib.parse import urlparse
@@ -14,6 +15,7 @@ from ..utils import tools
 
 DEFAULT_CONFIG_DIR = 'custom_data'
 JSON_NAME = 'project.json'
+CFG_TEMPLATE = 'setup-template.cfg'
 
 @task(name="custom_v1.extract", bind=True)
 def extract(self, *args, **kwargs):
@@ -85,8 +87,77 @@ def initialize(*args, **kwargs):
     params['project_data_path'] = project_data_path
     return params
 
+@task(name="custom_v1.setup")
+def setup(*args, **kwargs):
+    params = args[0]
 
-@task(name="custom_v1.metrics.caculate")
+    # create project setup config
+    setup = configparser.ConfigParser(allow_no_value=True)
+    template_path = config.get('GRIMOIRELAB_CONFIG_TEMPLATE') or CFG_TEMPLATE
+    setup.read(template_path)
+    setup.set('general', 'logs_dir', params['project_logs_dir'])
+    setup.set('projects', 'projects_file', params['project_data_path'])
+    setup.set('es_collection', 'url', config.get('ES_URL'))
+    setup.set('es_enrichment', 'url', config.get('ES_URL'))
+
+    dataset = params['dataset']
+
+    for label, data in dataset.items():
+        key = data['project_key']
+        url = data['project_url']
+        domain_name = data['domain_name']
+        # default configuration
+        backends = []
+
+        input_event_raw_index = f"{domain_name}-event_raw"
+        input_event_enriched_index = f"{domain_name}-event_enriched"
+
+        input_stargazer_raw_index = f"{domain_name}-stargazer_raw"
+        input_stargazer_enriched_index = f"{domain_name}-stargazer_enriched"
+
+        input_fork_raw_index = f"{domain_name}-fork_raw"
+        input_fork_enriched_index = f"{domain_name}-fork_enriched"
+
+        event_cfg = {
+            'raw_index': input_event_raw_index,
+            'enriched_index': input_event_enriched_index,
+            'category': 'event',
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
+        }
+
+        fork_cfg = {
+            'raw_index': input_fork_raw_index,
+            'enriched_index': input_fork_enriched_index,
+            'category': 'fork',
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
+        }
+
+        stargazer_cfg = {
+            'raw_index': input_stargazer_raw_index,
+            'enriched_index': input_stargazer_enriched_index,
+            'category': 'stargazer',
+            'sleep-for-rate': 'true',
+            'no-archive': 'true'
+        }
+        if domain_name == 'github':
+            backends.extend(['githubql:event', 'githubql:stargazer', 'githubql:fork'])
+            extra = {'api-token': config.get('GITEE_API_TOKEN')}
+            setup['githubql:event'] = {**event_cfg, **extra}
+            setup['githubql:stargazer'] = {**stargazer_cfg, **extra}
+            setup['githubql:fork'] = {**fork_cfg, **extra}
+        else:
+            pass
+
+        project_setup_path = join(params['project_configs_dir'], f"{key}.cfg")
+        with open(project_setup_path, 'w') as cfg:
+            setup.write(cfg)
+
+    return params
+
+
+@task(name="custom_v1.metrics.caculate", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def caculate(*args, **kwargs):
     params = args[0]
 
