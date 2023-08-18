@@ -12,9 +12,9 @@ from compass_model.base_metrics_model import BaseMetricsModel
 
 from . import config_logging
 from ..utils import tools
+from sirmordred.utils.micro import micro_mordred
 
 DEFAULT_CONFIG_DIR = 'custom_data'
-JSON_NAME = 'project.json'
 CFG_TEMPLATE = 'setup-template.cfg'
 
 @task(name="custom_v1.extract", bind=True)
@@ -29,7 +29,12 @@ def extract(self, *args, **kwargs):
         'metrics_weights_thresholds': payload.get('metrics_weights_thresholds'),
         'custom_fields': payload.get('custom_fields'),
         'algorithm': payload.get('algorithm') or 'criticality_score',
-        'debug': bool(payload.get('debug'))
+        'debug': bool(payload.get('debug')),
+        'raw': bool(payload.get('raw')),
+        'identities_load': bool(payload.get('identities_load')),
+        'identities_merge': bool(payload.get('identities_merge')),
+        'enrich': bool(payload.get('enrich')),
+        'skip_calc': bool(payload.get('skip_calc'))
     }
 
     for url in urls:
@@ -38,6 +43,7 @@ def extract(self, *args, **kwargs):
         data['project_url'] = label
         data['domain_name'] = tools.extract_domain(label)
         data['project_key'] = tools.normalize_key(label)
+        data['project_backends'] = []
         params['dataset'][label] = data
 
     params['project_hash'] = tools.hash_string(','.join(params['dataset'].keys()))
@@ -58,25 +64,25 @@ def initialize(*args, **kwargs):
             os.makedirs(directory)
 
     dataset = params['dataset']
-    project_data = {}
 
     for label, data in dataset.items():
         key = data['project_key']
         url = data['project_url']
         domain_name = data['domain_name']
-        project_data = tools.gen_project_section(project_data, domain_name, key, url)
+
 
         metrics_data = {}
         metrics_data[key] = {}
         metrics_data[key][domain_name] = [url]
         metrics_data_path = join(metrics_dir, f"{key}.json")
-
         with open(metrics_data_path, 'w') as jsonfile:
             json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
 
-    project_data_path = join(configs_dir, JSON_NAME)
-    with open(project_data_path, 'w') as f:
-        json.dump(project_data, f, indent=4, sort_keys=True)
+        project_data = {}
+        project_data = tools.gen_project_section_plus({}, domain_name, key, url)
+        project_data_path = join(configs_dir, f"{key}.json")
+        with open(project_data_path, 'w') as f:
+            json.dump(project_data, f, indent=4, sort_keys=True)
 
 
     config_logging(params['debug'], logs_dir, False)
@@ -84,7 +90,6 @@ def initialize(*args, **kwargs):
     params['project_configs_dir'] = configs_dir
     params['project_logs_dir'] = logs_dir
     params['project_metrics_dir'] = metrics_dir
-    params['project_data_path'] = project_data_path
     return params
 
 @task(name="custom_v1.setup")
@@ -96,7 +101,6 @@ def setup(*args, **kwargs):
     template_path = config.get('GRIMOIRELAB_CONFIG_TEMPLATE') or CFG_TEMPLATE
     setup.read(template_path)
     setup.set('general', 'logs_dir', params['project_logs_dir'])
-    setup.set('projects', 'projects_file', params['project_data_path'])
     setup.set('es_collection', 'url', config.get('ES_URL'))
     setup.set('es_enrichment', 'url', config.get('ES_URL'))
 
@@ -143,23 +147,88 @@ def setup(*args, **kwargs):
         }
         if domain_name == 'github':
             backends.extend(['githubql:event', 'githubql:stargazer', 'githubql:fork'])
-            extra = {'api-token': config.get('GITEE_API_TOKEN')}
+            extra = {'proxy': config.get('GITHUB_PROXY'), 'api-token': config.get('GITHUB_API_TOKEN')}
             setup['githubql:event'] = {**event_cfg, **extra}
             setup['githubql:stargazer'] = {**stargazer_cfg, **extra}
             setup['githubql:fork'] = {**fork_cfg, **extra}
+            params['dataset'][label]['project_backends'] = backends
         else:
             pass
 
+        setup.set('projects', 'projects_file', join(params['project_configs_dir'], f"{key}.json"))
         project_setup_path = join(params['project_configs_dir'], f"{key}.cfg")
         with open(project_setup_path, 'w') as cfg:
             setup.write(cfg)
 
     return params
 
+@task(name="custom_v1.raw", autoretry_for=(Exception,), retry_kwargs={'max_retries': 5}, acks_late=True)
+def raw(*args, **kwargs):
+    params = args[0]
+    params['raw_started_at'] = datetime.now()
+
+    if not params.get('raw'):
+        params['raw_finished_at'] = 'skipped'
+        return params
+
+    config_logging(params['debug'], params['project_logs_dir'])
+
+    dataset = params['dataset']
+    for label, data in dataset.items():
+        key = data['project_key']
+        url = data['project_url']
+        domain_name = data['domain_name']
+        micro_mordred(
+            join(params['project_configs_dir'], f"{key}.cfg"),
+            data['project_backends'],
+            None,
+            params['raw'],
+            False,
+            False,
+            False,
+            False
+        )
+
+    params['raw_finished_at'] = datetime.now()
+    return params
+
+@task(name="custom_v1.enrich", autoretry_for=(Exception,), retry_kwargs={'max_retries': 3}, acks_late=True)
+def enrich(*args, **kwargs):
+    params = args[0]
+    params['enrich_started_at'] = datetime.now()
+
+    if not params.get('enrich'):
+        params['enrich_finished_at'] = 'skipped'
+        return params
+
+    config_logging(params['debug'], params['project_logs_dir'])
+
+    dataset = params['dataset']
+    for label, data in dataset.items():
+        key = data['project_key']
+        url = data['project_url']
+        domain_name = data['domain_name']
+        micro_mordred(
+            join(params['project_configs_dir'], f"{key}.cfg"),
+            data['project_backends'],
+            None,
+            False,
+            False,
+            False,
+            params['enrich'],
+            False
+        )
+
+    params['enrich_finished_at'] = datetime.now()
+    return params
 
 @task(name="custom_v1.metrics.caculate", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def caculate(*args, **kwargs):
     params = args[0]
+
+    if params.get('skip_calc'):
+        params['caculate_finished_at'] = 'skipped'
+        return params
 
     config_logging(params['debug'], params['project_logs_dir'])
 

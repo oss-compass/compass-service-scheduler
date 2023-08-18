@@ -87,6 +87,28 @@ def gen_project_section(project_data, domain_name, key, url):
         project_data[key][f"{domain_name}:repo"] = [url]
     return project_data
 
+def gen_project_section_plus(project_data, domain_name, key, url):
+    if domain_name == 'gitee':
+        project_data[key] = {}
+        project_data[key]['git'] = [f"{url}.git"]
+        project_data[key][domain_name] = [url]
+        project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
+        project_data[key][f"{domain_name}:repo"] = [url]
+    elif domain_name == 'github':
+        project_data[key] = {}
+        project_data[key]['git'] = [f"{url}.git"]
+        project_data[key][f"{domain_name}:issue"] = [url]
+        project_data[key][f"{domain_name}:pull"] = [url]
+        project_data[key][f"{domain_name}2:issue"] = [url]
+        project_data[key][f"{domain_name}2:pull"] = [url]
+        project_data[key][f"{domain_name}:repo"] = [url]
+        project_data[key][f"{domain_name}ql:event"] = [url]
+        project_data[key][f"{domain_name}ql:stargazer"] = [url]
+        project_data[key][f"{domain_name}ql:fork"] = [url]
+    return project_data
+
 def load_yaml_template(url):
     proxies = {
         'http': config.get('GITHUB_PROXY'),
