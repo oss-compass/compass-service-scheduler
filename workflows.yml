@@ -49,6 +49,7 @@ insight.CUSTOM_V1:
     - custom_v1.setup
     - custom_v1.raw
     - custom_v1.enrich
+    - etl_v1.sleep
     - custom_v1.metrics.caculate
   queue: custom_queue_v1
 

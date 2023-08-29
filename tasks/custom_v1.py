@@ -7,6 +7,7 @@ import configparser
 from os.path import join, exists, abspath
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from compass_model.base_metrics_model import BaseMetricsModel
 
@@ -34,7 +35,8 @@ def extract(self, *args, **kwargs):
         'identities_load': bool(payload.get('identities_load')),
         'identities_merge': bool(payload.get('identities_merge')),
         'enrich': bool(payload.get('enrich')),
-        'skip_calc': bool(payload.get('skip_calc'))
+        'skip_calc': bool(payload.get('skip_calc')),
+        'sleep_for_waiting': int(payload.get('sleep_for_waiting') or 5)
     }
 
     for url in urls:
@@ -62,6 +64,10 @@ def initialize(*args, **kwargs):
     for directory in [configs_dir, logs_dir, metrics_dir]:
         if not exists(directory):
             os.makedirs(directory)
+
+    log_filepath = join(logs_dir, 'all.log')
+    if not exists(log_filepath):
+        Path(log_filepath).touch()
 
     dataset = params['dataset']
 
