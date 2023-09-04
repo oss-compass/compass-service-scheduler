@@ -144,7 +144,8 @@ def extract_group(self, *args, **kwargs):
     params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
     params['project_key'] = params['project_yaml']['community_name']
     params['project_types'] = params['project_yaml']['resource_types']
-    params['domain_name'] = tools.extract_domain(url)
+    count, gitee_count, github_count = tools.count_repos_group(params['project_yaml'])
+    params['domain_name'] = 'gitee' if gitee_count > github_count else 'github'
     params['project_hash'] = tools.hash_string(params['project_yaml_url'])
     params['raw'] = bool(payload.get('raw'))
     params['identities_load'] = bool(payload.get('identities_load'))

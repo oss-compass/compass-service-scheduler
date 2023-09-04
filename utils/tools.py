@@ -122,8 +122,9 @@ def load_yaml_template(url):
         return yaml.safe_load(requests.get(url, allow_redirects=True, proxies=proxies).text)
 
 
-def count_repos(yaml):
-    count = 0
+
+def count_repos_group(yaml):
+    count, gitee_count, github_count = 0, 0, 0
     for (project_type, project_info) in yaml['resource_types'].items():
         suffix = None
         if project_type == 'software-artifact-repositories' or \
@@ -139,5 +140,12 @@ def count_repos(yaml):
             for project_url in urls:
                 if not url_is_valid(project_url):
                     continue
+                if extract_domain(project_url) == 'gitee':
+                    gitee_count += 1
+                if extract_domain(project_url) == 'github':
+                    github_count += 1
                 count += 1
-    return count
+    return count, gitee_count, github_count
+
+def count_repos(yaml):
+    return count_repos_group(yaml)[0]
