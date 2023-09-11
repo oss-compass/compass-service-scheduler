@@ -320,7 +320,7 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'from-date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+        'from-date': params.get('from-date'),
         'to-date': datetime.now().strftime('%Y-%m-%d'),
         'category': 'commit'
     }
