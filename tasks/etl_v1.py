@@ -119,6 +119,7 @@ def extract(self, *args, **kwargs):
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
+    params['from-date'] = payload.get('from-date')
 
     return params
 
@@ -159,6 +160,7 @@ def extract_group(self, *args, **kwargs):
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
+    params['from-date'] = payload.get('from-date')
 
     return params
 
@@ -318,7 +320,7 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'from-date': config.get('METRICS_FROM_DATE'),
+        'from-date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
         'to-date': datetime.now().strftime('%Y-%m-%d'),
         'category': 'commit'
     }
@@ -328,7 +330,8 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_issues_index,
         'category': 'issue',
         'sleep-for-rate': 'true',
-        'no-archive': 'true'
+        'no-archive': 'true',
+        'from-date': params.get('from-date')
     }
 
     issues2_cfg = {
@@ -337,7 +340,8 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_issues2_index,
         'category': 'issue',
         'sleep-for-rate': 'true',
-        'no-archive': 'true'
+        'no-archive': 'true',
+        'from-date': params.get('from-date')
     }
 
     pulls_cfg = {
@@ -345,7 +349,8 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_pulls_index,
         'category': 'pull_request',
         'sleep-for-rate': 'true',
-        'no-archive': 'true'
+        'no-archive': 'true',
+        'from-date': params.get('from-date')
     }
 
     pulls2_cfg = {
@@ -354,7 +359,8 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_pulls2_index,
         'category': 'pull_request',
         'sleep-for-rate': 'true',
-        'no-archive': 'true'
+        'no-archive': 'true',
+        'from-date': params.get('from-date')
     }
 
     repo_cfg = {
@@ -548,7 +554,7 @@ def contributors_refresh(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'git_index': params['project_git_index'],
             'contributors_index': params['project_contributors_index'],
-            'from_date': config.get('METRICS_FROM_DATE'),
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'company': None
         }
@@ -579,7 +585,7 @@ def metrics_activity(*args, **kwargs):
             'git_index': params['project_git_index'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
             'git_branch': None,
-            'from_date': config.get('METRICS_FROM_DATE'),
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
@@ -613,7 +619,7 @@ def metrics_community(*args, **kwargs):
             'git_index': params['project_git_index'],
             'json_file': params['metrics_data_path'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
-            'from_date': config.get('METRICS_FROM_DATE'),
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level']
@@ -645,7 +651,7 @@ def metrics_codequality(*args, **kwargs):
             'git_index': params['project_git_index'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
             'git_branch': None,
-            'from_date': config.get('METRICS_FROM_DATE'),
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
@@ -680,7 +686,7 @@ def metrics_group_activity(*args, **kwargs):
             'git_index': params['project_git_index'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
             'git_branch': None,
-            'from_date': config.get('METRICS_FROM_DATE'),
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
