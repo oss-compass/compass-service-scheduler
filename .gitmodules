@@ -1,0 +1,3 @@
+[submodule "celery-director"]
+	path = celery-director
+	url = https://github.com/EdmondFrank/celery-director.git
