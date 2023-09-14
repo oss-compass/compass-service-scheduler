@@ -320,7 +320,6 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'from-date': params.get('from-date'),
         'to-date': datetime.now().strftime('%Y-%m-%d'),
         'category': 'commit'
     }
@@ -330,8 +329,7 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_issues_index,
         'category': 'issue',
         'sleep-for-rate': 'true',
-        'no-archive': 'true',
-        'from-date': params.get('from-date')
+        'no-archive': 'true'
     }
 
     issues2_cfg = {
@@ -340,8 +338,7 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_issues2_index,
         'category': 'issue',
         'sleep-for-rate': 'true',
-        'no-archive': 'true',
-        'from-date': params.get('from-date')
+        'no-archive': 'true'
     }
 
     pulls_cfg = {
@@ -349,8 +346,7 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_pulls_index,
         'category': 'pull_request',
         'sleep-for-rate': 'true',
-        'no-archive': 'true',
-        'from-date': params.get('from-date')
+        'no-archive': 'true'
     }
 
     pulls2_cfg = {
@@ -359,8 +355,7 @@ def setup(*args, **kwargs):
         'enriched_index': input_enrich_pulls2_index,
         'category': 'pull_request',
         'sleep-for-rate': 'true',
-        'no-archive': 'true',
-        'from-date': params.get('from-date')
+        'no-archive': 'true'
     }
 
     repo_cfg = {
@@ -370,6 +365,13 @@ def setup(*args, **kwargs):
         'sleep-for-rate': 'true',
         'no-archive': 'true'
     }
+
+    if params.get('from-date'):
+        setup['git']['from-date'] = params.get('from-date')
+        issues_cfg['from-date'] = params.get('from-date')
+        issues2_cfg['from-date'] = params.get('from-date')
+        pulls_cfg['from-date'] = params.get('from-date')
+        pulls2_cfg['from-date'] = params.get('from-date')
 
     if domain_name == 'gitee':
         backends.extend(['gitee', 'gitee:pull', 'gitee:repo', 'gitee2:issue', 'gitee2:pull'])
