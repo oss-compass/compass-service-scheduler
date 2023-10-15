@@ -383,7 +383,10 @@ def setup(*args, **kwargs):
         setup['gitee:repo'] = {**repo_cfg, **extra}
     elif domain_name == 'github':
         backends.extend(['github:issue', 'github:pull', 'github:repo', 'github2:issue', 'github2:pull'])
-        extra = {'proxy': config.get('GITHUB_PROXY'), 'api-token': config.get('GITHUB_API_TOKEN')}
+        extra = {'api-token': config.get('GITHUB_API_TOKEN')}
+        github_proxy = config.get('GITHUB_PROXY')
+        if github_proxy:
+            extra['proxy'] = github_proxy
         setup['github:issue'] = {**issues_cfg, **extra}
         setup['github2:issue'] = {**issues2_cfg, **extra}
         setup['github:pull'] = {**pulls_cfg, **extra}
