@@ -324,7 +324,12 @@ def setup(*args, **kwargs):
     input_fork_raw_index = f"{domain_name}-fork_raw"
     input_fork_enriched_index = f"{domain_name}-fork_enriched"
 
+    #only for gitee
+    input_watch_raw_index = f"{domain_name}-watch_raw"
+    input_watch_enriched_index = f"{domain_name}-watch_enriched"
+
     input_refresh_contributors_index = f"{domain_name}-contributors_org_repo"
+    input_refresh_contributors_enriched_index = f"{domain_name}-contributors_org_repo_enriched"
 
     setup['git'] = {
         'raw_index': input_git_raw_index,
@@ -391,6 +396,15 @@ def setup(*args, **kwargs):
         'no-archive': 'true'
     }
 
+    # only for gitee
+    watch_cfg = {
+        'raw_index': input_watch_raw_index,
+        'enriched_index': input_watch_enriched_index,
+        'category': 'watch',
+        'sleep-for-rate': 'true',
+        'no-archive': 'true'
+    }
+
     stargazer_cfg = {
         'raw_index': input_stargazer_raw_index,
         'enriched_index': input_stargazer_enriched_index,
@@ -408,15 +422,23 @@ def setup(*args, **kwargs):
         event_cfg['from-date'] = params.get('from-date')
         fork_cfg['from-date'] = params.get('from-date')
         stargazer_cfg['from-date'] = params.get('from-date')
+        watch_cfg['from-date'] = params.get('from-date')
 
     if domain_name == 'gitee':
-        backends.extend(['gitee', 'gitee:pull', 'gitee:repo', 'gitee2:issue', 'gitee2:pull'])
+        backends.extend([
+            'gitee', 'gitee:pull', 'gitee:repo',
+            'gitee2:issue', 'gitee2:pull',
+            'gitee:stargazer', 'gitee:fork', 'gitee:watch', 'gitee:event'])
         extra = {'api-token': config.get('GITEE_API_TOKEN')}
         setup['gitee'] = {**issues_cfg, **extra}
         setup['gitee2:issue'] = {**issues2_cfg, **extra}
         setup['gitee:pull'] = {**pulls_cfg, **extra}
         setup['gitee2:pull'] = {**pulls2_cfg, **extra}
         setup['gitee:repo'] = {**repo_cfg, **extra}
+        setup['gitee:stargazer'] = {**stargazer_cfg, **extra}
+        setup['gitee:fork'] = {**fork_cfg, **extra}
+        setup['gitee:event'] = {**event_cfg, **extra}
+        setup['gitee:watch'] = {**watch_cfg, **extra}
     elif domain_name == 'github':
         backends.extend([
             'github:issue', 'github:pull', 'github:repo',
@@ -451,12 +473,15 @@ def setup(*args, **kwargs):
     params['project_repo_index'] = input_repo_enriched_index
     params['project_release_index'] = input_enrich_releases_index
 
-    # only support github now
     params['project_event_index'] = input_event_enriched_index
     params['project_fork_index'] = input_fork_enriched_index
     params['project_stargazer_index'] = input_stargazer_enriched_index
 
+    # no use
+    params['project_watch_index'] = input_watch_enriched_index
+
     params['project_contributors_index'] = input_refresh_contributors_index
+    params['project_contributors_enriched_index'] = input_refresh_contributors_enriched_index
     return params
 
 
@@ -607,8 +632,13 @@ def contributors_refresh(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'git_index': params['project_git_index'],
             'contributors_index': params['project_contributors_index'],
+            'contributors_enriched_index': params['project_contributors_enriched_index'],
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'repo_index': params['project_repo_index'],
+            'event_index': params['project_event_index'],
+            'stargazer_index': params['project_stargazer_index'],
+            'fork_index': params['project_fork_index'],
             'company': None
         }
         params["contributors_refresh_params"] = metrics_cfg

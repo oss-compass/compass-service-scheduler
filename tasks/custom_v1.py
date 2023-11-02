@@ -85,7 +85,7 @@ def initialize(*args, **kwargs):
             json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
 
         project_data = {}
-        project_data = tools.gen_project_section_plus({}, domain_name, key, url)
+        project_data = tools.gen_project_section({}, domain_name, key, url)
         project_data_path = join(configs_dir, f"{key}.json")
         with open(project_data_path, 'w') as f:
             json.dump(project_data, f, indent=4, sort_keys=True)
