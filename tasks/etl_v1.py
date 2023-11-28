@@ -160,6 +160,7 @@ def extract_group(self, *args, **kwargs):
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
+    params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['from-date'] = payload.get('from-date')
 
     return params
@@ -227,13 +228,9 @@ def initialize_group(*args, **kwargs):
     metrics_data[name] = {}
     for (project_type, project_info) in params['project_types'].items():
         suffix = None
-        if project_type == 'software-artifact-repositories' or \
-           project_type == 'software-artifact-resources' or \
-           project_type == 'software-artifact-projects':
+        if tools.is_software_artifact_type(project_type):
             suffix = 'software-artifact'
-        if project_type == 'governance-repositories' or \
-           project_type == 'governance-resources' or \
-           project_type == 'governance-projects':
+        if tools.is_governance_type(project_type):
             suffix = 'governance'
         if suffix:
             urls = project_info['repo_urls']
@@ -517,22 +514,36 @@ def expire_enriched(*args, **kwargs):
         is_https = urlparse(elastic_url).scheme == 'https'
         es_client = Elasticsearch(
             elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection)
-        repo_url = params['project_url']
-        for index in [
-                'project_git_index',
-                'project_issues_index',
-                'project_issues2_index',
-                'project_pulls_index',
-                'project_pulls2_index'
-        ]:
-            body = {
-                "query": {
-                    "match": {
-                        "tag": f"{repo_url}.git" if 'git' in index else repo_url
+        repo_urls = []
+        if params.get('level') == 'repo':
+            repo_urls = [params['project_url']]
+        else:
+            for (project_type, project_info) in params['project_types'].items():
+                suffix = None
+                if tools.is_software_artifact_type(project_type):
+                    suffix = 'software-artifact'
+                if tools.is_governance_type(project_type):
+                    suffix = 'governance'
+                if suffix:
+                    urls = list(filter(lambda url: tools.url_is_valid(url), project_info['repo_urls']))
+                    repo_urls.extend(urls)
+
+        for repo_url in repo_urls:
+            for index in [
+                    'project_git_index',
+                    'project_issues_index',
+                    'project_issues2_index',
+                    'project_pulls_index',
+                    'project_pulls2_index'
+            ]:
+                body = {
+                    "query": {
+                        "match": {
+                            "tag": f"{repo_url}.git" if 'git' in index else repo_url
+                        }
                     }
                 }
-            }
-            es_client.delete_by_query(index=params[index], body=body)
+                es_client.delete_by_query(index=params[index], body=body)
         params['force_refresh_enriched_finished_at'] = datetime.now()
     else:
         params['force_refresh_enriched_finished_at'] = 'skipped'
@@ -794,11 +805,13 @@ def finish(*args, **kwargs):
     message = {
         'label': label,
         'level': params['level'],
+        'origin': params.get('domain_name'),
         'status': 'complete',
         'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
         'status_updated_at': datetime.isoformat(datetime.utcnow())
     }
     tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
+    tools.basic_publish('third_party_callback_v1', message, config.get('RABBITMQ_URI'))
     return params
 
 @task(name="etl_v1.notify", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})

@@ -58,6 +58,16 @@ def hash_string(string):
     h.update(bytes(string, encoding='utf-8'))
     return h.hexdigest()
 
+def is_software_artifact_type(project_type):
+    return project_type == 'software-artifact-repositories' or \
+        project_type == 'software-artifact-resources' or \
+        project_type == 'software-artifact-projects'
+
+def is_governance_type(project_type):
+    return project_type == 'governance-repositories' or \
+        project_type == 'governance-resources' or \
+        project_type == 'governance-projects'
+
 def url_is_valid(url):
     regex = re.compile(
         r'^(?:http|ftp)s?://' # http:// or https://
