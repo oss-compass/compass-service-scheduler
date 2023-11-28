@@ -513,7 +513,8 @@ def expire_enriched(*args, **kwargs):
         elastic_url = config.get('ES_URL')
         is_https = urlparse(elastic_url).scheme == 'https'
         es_client = Elasticsearch(
-            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection)
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
         repo_urls = []
         if params.get('level') == 'repo':
             repo_urls = [params['project_url']]
