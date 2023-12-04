@@ -268,11 +268,13 @@ def start(*args, **kwargs):
     message = {
         'label': label,
         'level': params['level'],
+        'origin': params.get('domain_name'),
         'status': 'progress',
         'count': 1 if params['level'] == 'repo' else tools.count_repos(params['project_yaml']),
         'status_updated_at': datetime.isoformat(datetime.utcnow())
     }
     tools.basic_publish('subscriptions_update_v1', message, config.get('RABBITMQ_URI'))
+    tools.basic_publish('third_party_callback_v1', message, config.get('RABBITMQ_URI'))
     return params
 
 @task(name="etl_v1.setup")
