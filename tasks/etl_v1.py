@@ -24,6 +24,12 @@ from compass_metrics_model.metrics_model import (
     OrganizationsActivityMetricsModel
 )
 
+# New Metrics Model
+
+from compass_model.contributor.productivity.domain_persona_metrics_model import DomainPersonaMetricsModel
+from compass_model.contributor.productivity.milestone_persona_metrics_model import MilestonePersonaMetricsModel
+from compass_model.contributor.productivity.role_persona_metrics_model import RolePersonaMetricsModel
+
 from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
 
 DEFAULT_CONFIG_DIR = 'analysis_data'
@@ -53,6 +59,9 @@ def validate_callback(callback):
 #     "metrics_community":true,
 #     "metrics_codequality":true,
 #     "metrics_group_activity":true,
+#     "metrics_domain_persona":true,
+#     "metrics_milestone_persona":true,
+#     "metrics_role_persona":true,
 #     "debug":false,
 #     "project_url":"https://github.com/manateelazycat/lsp-bridge",
 #     "level":"repo",
@@ -73,6 +82,9 @@ def validate_callback(callback):
 #     "metrics_community":true,
 #     "metrics_codequality":true,
 #     "metrics_group_activity":true,
+#     "metrics_domain_persona":true,
+#     "metrics_milestone_persona":true,
+#     "metrics_role_persona":true,
 #     "debug":false,
 #     "project_template_yaml":"https://gitee.com/edmondfrank/compass-project-template/raw/main/organizations/EAF.yml",
 #     "level":"community",
@@ -117,6 +129,9 @@ def extract(self, *args, **kwargs):
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
+    params['metrics_domain_persona'] = bool(payload.get('metrics_domain_persona'))
+    params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
+    params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['from-date'] = payload.get('from-date')
@@ -159,6 +174,9 @@ def extract_group(self, *args, **kwargs):
     params['metrics_community'] = bool(payload.get('metrics_community'))
     params['metrics_codequality'] = bool(payload.get('metrics_codequality'))
     params['metrics_group_activity'] = bool(payload.get('metrics_group_activity'))
+    params['metrics_domain_persona'] = bool(payload.get('metrics_domain_persona'))
+    params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
+    params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['from-date'] = payload.get('from-date')
@@ -691,7 +709,7 @@ def metrics_activity(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index']
         }
-        params["metrics_activity_params"] = metrics_cfg
+        params['metrics_activity_params'] = metrics_cfg
         model_activity = ActivityMetricsModel(**metrics_cfg['params'])
         model_activity.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_activity_finished_at'] = datetime.now()
@@ -721,7 +739,7 @@ def metrics_community(*args, **kwargs):
             'community': project_key,
             'level': params['level']
         }
-        params["metrics_community_params"] = metrics_cfg
+        params['metrics_community_params'] = metrics_cfg
         model_community = CommunitySupportMetricsModel(**metrics_cfg['params'])
         model_community.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_community_finished_at'] = datetime.now()
@@ -756,7 +774,7 @@ def metrics_codequality(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index']
         }
-        params["metrics_codequality_params"] = metrics_cfg
+        params['metrics_codequality_params'] = metrics_cfg
         model_codequality = CodeQualityGuaranteeMetricsModel(**metrics_cfg['params'])
         model_codequality.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_codequality_finished_at'] = datetime.now()
@@ -792,12 +810,121 @@ def metrics_group_activity(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index']
         }
-        params[f"metrics_group_activity_params"] = metrics_cfg
+        params['metrics_group_activity_params'] = metrics_cfg
         model_codequality = OrganizationsActivityMetricsModel(**metrics_cfg['params'])
         model_codequality.metrics_model_metrics(metrics_cfg['url'])
         params['metrics_group_activity_finished_at'] = datetime.now()
     else:
         params['metrics_group_activity_finished_at'] = 'skipped'
+    return params
+
+
+@task(name="etl_v1.metrics.domain_persona", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_domain_persona(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_domain_persona_started_at'] = datetime.now()
+
+    if params.get('metrics_domain_persona'):
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_domain_persona",
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path'],
+            'contributors_enriched_index': params['project_contributors_enriched_index']
+        }
+        params['metrics_domain_persona_params'] = metrics_cfg
+        model_domain_persona = DomainPersonaMetricsModel(**metrics_cfg['params'])
+        model_domain_persona.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_domain_persona_finished_at'] = datetime.now()
+    else:
+        params['metrics_domain_persona_finished_at'] = 'skipped'
+    return params
+
+@task(name="etl_v1.metrics.milestone_persona", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_milestone_persona(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_milestone_persona_started_at'] = datetime.now()
+
+    if params.get('metrics_milestone_persona'):
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_milestone_persona",
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path'],
+            'contributors_enriched_index': params['project_contributors_enriched_index']
+        }
+        params["metrics_milestone_persona_params"] = metrics_cfg
+        model_milestone_persona = MilestonePersonaMetricsModel(**metrics_cfg['params'])
+        model_milestone_persona.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_milestone_persona_finished_at'] = datetime.now()
+    else:
+        params['metrics_milestone_persona_finished_at'] = 'skipped'
+    return params
+
+@task(name="etl_v1.metrics.role_persona", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_role_persona(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_role_persona_started_at'] = datetime.now()
+
+    if params.get('metrics_role_persona'):
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': f"{config.get('METRICS_OUT_INDEX')}_role_persona",
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path'],
+            'contributors_enriched_index': params['project_contributors_enriched_index']
+        }
+        params['metrics_role_persona_params'] = metrics_cfg
+        model_role_persona = RolePersonaMetricsModel(**metrics_cfg['params'])
+        model_role_persona.metrics_model_metrics(metrics_cfg['url'])
+        params['metrics_role_persona_finished_at'] = datetime.now()
+    else:
+        params['metrics_role_persona_finished_at'] = 'skipped'
     return params
 
 
