@@ -134,6 +134,7 @@ def extract(self, *args, **kwargs):
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
+    params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
 
     return params
@@ -179,6 +180,7 @@ def extract_group(self, *args, **kwargs):
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
+    params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
 
     return params
@@ -827,6 +829,13 @@ def metrics_domain_persona(*args, **kwargs):
     params['metrics_domain_persona_started_at'] = datetime.now()
 
     if params.get('metrics_domain_persona'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+        out_index = f"{config.get('METRICS_OUT_INDEX')}_domain_persona"
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -839,7 +848,7 @@ def metrics_domain_persona(*args, **kwargs):
             'contributors_index': params['project_contributors_index'],
             'release_index': params['project_release_index'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_domain_persona",
-            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'from_date': from_date,
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'level': params['level'],
             'community': project_key,
@@ -850,6 +859,9 @@ def metrics_domain_persona(*args, **kwargs):
         params['metrics_domain_persona_params'] = metrics_cfg
         model_domain_persona = DomainPersonaMetricsModel(**metrics_cfg['params'])
         model_domain_persona.metrics_model_metrics(metrics_cfg['url'])
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'metrics_domain_persona': True, 'from-date': from_date})
         params['metrics_domain_persona_finished_at'] = datetime.now()
     else:
         params['metrics_domain_persona_finished_at'] = 'skipped'
@@ -863,6 +875,13 @@ def metrics_milestone_persona(*args, **kwargs):
     params['metrics_milestone_persona_started_at'] = datetime.now()
 
     if params.get('metrics_milestone_persona'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+        out_index = f"{config.get('METRICS_OUT_INDEX')}_milestone_persona"
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -874,7 +893,7 @@ def metrics_milestone_persona(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index'],
             'release_index': params['project_release_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_milestone_persona",
+            'out_index': out_index,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'level': params['level'],
@@ -886,6 +905,9 @@ def metrics_milestone_persona(*args, **kwargs):
         params["metrics_milestone_persona_params"] = metrics_cfg
         model_milestone_persona = MilestonePersonaMetricsModel(**metrics_cfg['params'])
         model_milestone_persona.metrics_model_metrics(metrics_cfg['url'])
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'metrics_milestone_persona': True, 'from-date': from_date})
         params['metrics_milestone_persona_finished_at'] = datetime.now()
     else:
         params['metrics_milestone_persona_finished_at'] = 'skipped'
@@ -899,6 +921,13 @@ def metrics_role_persona(*args, **kwargs):
     params['metrics_role_persona_started_at'] = datetime.now()
 
     if params.get('metrics_role_persona'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+        out_index = f"{config.get('METRICS_OUT_INDEX')}_role_persona"
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -910,7 +939,7 @@ def metrics_role_persona(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index'],
             'release_index': params['project_release_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_role_persona",
+            'out_index': out_index,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'level': params['level'],
@@ -922,6 +951,9 @@ def metrics_role_persona(*args, **kwargs):
         params['metrics_role_persona_params'] = metrics_cfg
         model_role_persona = RolePersonaMetricsModel(**metrics_cfg['params'])
         model_role_persona.metrics_model_metrics(metrics_cfg['url'])
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'metrics_role_persona': True, 'from-date': from_date})
         params['metrics_role_persona_finished_at'] = datetime.now()
     else:
         params['metrics_role_persona_finished_at'] = 'skipped'

@@ -1,11 +1,14 @@
 import requests
 import tldextract
 import yaml
+import time
 import hashlib
 import re
 
 from director import task, config
 from urllib.parse import urlparse
+from dateutil import parser
+from datetime import datetime, timedelta
 
 import pika
 import json
@@ -67,6 +70,92 @@ def is_governance_type(project_type):
     return project_type == 'governance-repositories' or \
         project_type == 'governance-resources' or \
         project_type == 'governance-projects'
+
+def check_sub_repos_metrics(es_client, out_index, project_types, metrics_payload):
+    repo_urls = []
+    for (project_type, project_info) in project_types.items():
+        suffix = None
+        if is_software_artifact_type(project_type):
+            suffix = 'software-artifact'
+        if is_governance_type(project_type):
+            suffix = 'governance'
+        if suffix:
+            urls = list(filter(lambda url: url_is_valid(url), project_info['repo_urls']))
+            repo_urls.extend(urls)
+    for repo_url in set(repo_urls):
+        last_time = get_last_metrics_model_time(es_client, out_index, repo_url, 'repo')
+        if last_time is None or (last_time is not None and parser.parse(last_time).replace(tzinfo=None) < (datetime.now() - timedelta(days=7))):
+            logger.warning(f"Begin to refresh {repo_url} due to expired already {last_time}.")
+            run_single_repo_workflow(repo_url, extra_payload=metrics_payload)
+
+def run_single_repo_workflow(repo_url, extra_payload={}):
+    json_data = {
+        'project': 'insight',
+        'name': 'ETL_V1',
+        'payload': {
+            'debug': False,
+            'enrich': False,
+            'identities_load': False,
+            'identities_merge': False,
+            'force_refresh_enriched': False,
+            'metrics_activity': False,
+            'metrics_codequality': False,
+            'metrics_community': False,
+            'metrics_group_activity': False,
+            'panels': False,
+            'project_url': repo_url,
+            'raw': False,
+        }
+    }
+    json_data['payload'].update(extra_payload)
+    max_retries = 5
+    retry_interval = 15  # seconds
+    for attempt in range(max_retries):
+        response = requests.post(f"{config.get('DEFAULT_HOST')}/api/workflows", json=json_data, verify=False)
+        if response.status_code >= 200 and response.status_code < 300:
+            break
+        else:
+            logger.warning(f"Request failed with status code {response.status_code}. Retrying in {retry_interval} seconds...")
+            time.sleep(retry_interval)
+
+    return response
+
+def get_last_metrics_model_time(es_client, index, label, level):
+    try:
+        query_hits = es_client.search(index=index, body=get_last_metrics_model_query(label, level))["hits"]["hits"]
+        return query_hits[0]["_source"]["grimoire_creation_date"] if query_hits.__len__() > 0 else None
+    except NotFoundError:
+        return None
+
+def get_last_metrics_model_query(label, level):
+    query = {
+        'size': 1,
+        'query': {
+            'bool': {
+                'must': [
+                    {
+                        'match_phrase': {
+                            'label': label
+                        }
+                    },
+                    {
+                        'term': {
+                            'level.keyword': level
+                        }
+                    }
+                ]
+            }
+        },
+        'sort': [
+            {
+                'grimoire_creation_date': {
+                    'order': 'desc',
+                    'unmapped_type': 'keyword'
+                }
+            }
+        ]
+    }
+    return query
 
 def url_is_valid(url):
     regex = re.compile(
