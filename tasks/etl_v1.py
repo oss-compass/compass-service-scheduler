@@ -650,6 +650,7 @@ def sleep(*args, **kwargs):
 @task(name="etl_v1.contributors_refresh", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def contributors_refresh(*args, **kwargs):
     params = args[0]
+    project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params['contributors_refresh_started_at'] = datetime.now()
     if params['identities_load'] or params['identities_merge']:
@@ -670,6 +671,8 @@ def contributors_refresh(*args, **kwargs):
             'event_index': params['project_event_index'],
             'stargazer_index': params['project_stargazer_index'],
             'fork_index': params['project_fork_index'],
+            'level': params['level'],
+            'community': project_key,
             'contributors_org_index': 'contributor_org',
             'organizations_index': 'organizations',
             'bots_index': 'bots',
