@@ -657,9 +657,6 @@ def contributors_refresh(*args, **kwargs):
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
             'json_file': params['metrics_data_path'],
-            'identities_config_file': config.get('IDENTITIES_CONFIG_FILE'),
-            'organizations_config_file': config.get('ORGANIZATIONS_CONFIG_FILE'),
-            'bots_config_file': config.get('BOTS_CONFIG_FILE'),
             'issue_index': params['project_issues_index'],
             'pr_index': params['project_pulls_index'],
             'issue_comments_index': params['project_issues2_index'],
@@ -673,6 +670,9 @@ def contributors_refresh(*args, **kwargs):
             'event_index': params['project_event_index'],
             'stargazer_index': params['project_stargazer_index'],
             'fork_index': params['project_fork_index'],
+            'contributors_org_index': 'contributor_org',
+            'organizations_index': 'organizations',
+            'bots_index': 'bots',
             'company': None
         }
         params["contributors_refresh_params"] = metrics_cfg
