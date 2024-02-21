@@ -136,6 +136,7 @@ def extract(self, *args, **kwargs):
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
+    params['to-date'] = payload.get('to-date')
 
     return params
 
@@ -182,6 +183,7 @@ def extract_group(self, *args, **kwargs):
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
+    params['to-date'] = payload.get('to-date')
 
     return params
 
@@ -353,7 +355,6 @@ def setup(*args, **kwargs):
     setup['git'] = {
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
-        'to-date': datetime.now().strftime('%Y-%m-%d'),
         'category': 'commit'
     }
 
@@ -442,6 +443,18 @@ def setup(*args, **kwargs):
         fork_cfg['from-date'] = params.get('from-date')
         stargazer_cfg['from-date'] = params.get('from-date')
         watch_cfg['from-date'] = params.get('from-date')
+    
+    if params.get('to-date'):
+        setup['git']['to-date'] = params.get('to-date')
+        issues_cfg['to-date'] = params.get('to-date')
+        issues2_cfg['to-date'] = params.get('to-date')
+        pulls_cfg['to-date'] = params.get('to-date')
+        pulls2_cfg['to-date'] = params.get('to-date')
+        event_cfg['to-date'] = params.get('to-date')
+        fork_cfg['to-date'] = params.get('to-date')
+        stargazer_cfg['to-date'] = params.get('to-date')
+        watch_cfg['to-date'] = params.get('to-date')
+    
 
     if domain_name == 'gitee':
         backends.extend([
@@ -666,7 +679,7 @@ def contributors_refresh(*args, **kwargs):
             'contributors_index': params['project_contributors_index'],
             'contributors_enriched_index': params['project_contributors_enriched_index'],
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'repo_index': params['project_repo_index'],
             'event_index': params['project_event_index'],
             'stargazer_index': params['project_stargazer_index'],
@@ -706,7 +719,7 @@ def metrics_activity(*args, **kwargs):
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
             'release_index': params['project_release_index'],
@@ -740,7 +753,7 @@ def metrics_community(*args, **kwargs):
             'json_file': params['metrics_data_path'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level']
         }
@@ -772,7 +785,7 @@ def metrics_codequality(*args, **kwargs):
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
             'company': None,
@@ -807,7 +820,7 @@ def metrics_group_activity(*args, **kwargs):
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
             'level': params['level'],
             'company': None,
@@ -839,6 +852,7 @@ def metrics_domain_persona(*args, **kwargs):
             timeout=180, max_retries=3, retry_on_timeout=True)
         out_index = f"{config.get('METRICS_OUT_INDEX')}_domain_persona"
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -852,7 +866,7 @@ def metrics_domain_persona(*args, **kwargs):
             'release_index': params['project_release_index'],
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_domain_persona",
             'from_date': from_date,
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': end_date,
             'level': params['level'],
             'community': project_key,
             'source': params['domain_name'],
@@ -864,7 +878,7 @@ def metrics_domain_persona(*args, **kwargs):
         model_domain_persona.metrics_model_metrics(metrics_cfg['url'])
         if params['level'] == 'community' and params.get('refresh_sub_repos'):
             tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
-                                          {'metrics_domain_persona': True, 'from-date': from_date})
+                                          {'metrics_domain_persona': True, 'from-date': from_date, 'to-date': end_date})
         params['metrics_domain_persona_finished_at'] = datetime.now()
     else:
         params['metrics_domain_persona_finished_at'] = 'skipped'
@@ -885,6 +899,7 @@ def metrics_milestone_persona(*args, **kwargs):
             timeout=180, max_retries=3, retry_on_timeout=True)
         out_index = f"{config.get('METRICS_OUT_INDEX')}_milestone_persona"
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -898,7 +913,7 @@ def metrics_milestone_persona(*args, **kwargs):
             'release_index': params['project_release_index'],
             'out_index': out_index,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': end_date,
             'level': params['level'],
             'community': project_key,
             'source': params['domain_name'],
@@ -910,7 +925,7 @@ def metrics_milestone_persona(*args, **kwargs):
         model_milestone_persona.metrics_model_metrics(metrics_cfg['url'])
         if params['level'] == 'community' and params.get('refresh_sub_repos'):
             tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
-                                          {'metrics_milestone_persona': True, 'from-date': from_date})
+                                          {'metrics_milestone_persona': True, 'from-date': from_date, 'to-date': end_date})
         params['metrics_milestone_persona_finished_at'] = datetime.now()
     else:
         params['metrics_milestone_persona_finished_at'] = 'skipped'
@@ -931,6 +946,7 @@ def metrics_role_persona(*args, **kwargs):
             timeout=180, max_retries=3, retry_on_timeout=True)
         out_index = f"{config.get('METRICS_OUT_INDEX')}_role_persona"
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -944,7 +960,7 @@ def metrics_role_persona(*args, **kwargs):
             'release_index': params['project_release_index'],
             'out_index': out_index,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
-            'end_date': datetime.now().strftime('%Y-%m-%d'),
+            'end_date': end_date,
             'level': params['level'],
             'community': project_key,
             'source': params['domain_name'],
@@ -956,7 +972,7 @@ def metrics_role_persona(*args, **kwargs):
         model_role_persona.metrics_model_metrics(metrics_cfg['url'])
         if params['level'] == 'community' and params.get('refresh_sub_repos'):
             tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
-                                          {'metrics_role_persona': True, 'from-date': from_date})
+                                          {'metrics_role_persona': True, 'from-date': from_date, 'to-date': end_date})
         params['metrics_role_persona_finished_at'] = datetime.now()
     else:
         params['metrics_role_persona_finished_at'] = 'skipped'
