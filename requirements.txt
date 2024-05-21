@@ -2,7 +2,7 @@
 colorlog==4.1.0
 # compass_metrics_model=0.1.0 https://github.com/oss-compass/compass-metrics-model
 PyYAML==5.4.1
-requests==2.31.0
+requests==2.32.0
 sirmordred==0.3.1
 tldextract==3.3.1
 pika==1.3.2
