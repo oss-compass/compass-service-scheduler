@@ -105,13 +105,14 @@ def extract(self, *args, **kwargs):
     if not (params['domain'] in SUPPORT_DOMAINS):
         message = f"no support project from {url}"
         if validate_callback(callback):
-            callback['params']['password'] = config.get('HOOK_PASS')
-            callback['params']['result'] = {
-                'task': self.name,
-                'status': False,
-                'message': message
-            }
-            requests.post(callback['hook_url'], json=callback['params'])
+            if callback['params'].get("callback_type", "") != "tpc_software_callback":
+                callback['params']['password'] = config.get('HOOK_PASS')
+                callback['params']['result'] = {
+                    'task': self.name,
+                    'status': False,
+                    'message': message
+                }
+                requests.post(callback['hook_url'], json=callback['params'])
         raise Exception(f"no support project from {url}")
 
     params['project_url'] = tools.normalize_url(url)
@@ -152,9 +153,10 @@ def extract_group(self, *args, **kwargs):
     if not (params['domain'] in SUPPORT_DOMAINS):
         message = f"no support project from {url}"
         if validate_callback(callback):
-            callback['params']['password'] = config.get('HOOK_PASS')
-            callback['params']['result'] = {'task': self.name, 'status': False, 'message': message}
-            requests.post(callback['hook_url'], json=callback['params'])
+            if callback['params'].get("callback_type", "") != "tpc_software_callback":
+                callback['params']['password'] = config.get('HOOK_PASS')
+                callback['params']['result'] = {'task': self.name, 'status': False, 'message': message}
+                requests.post(callback['hook_url'], json=callback['params'])
         raise Exception(f"no support project from {url}")
 
     project_yaml_url = tools.normalize_url(url)
@@ -1005,15 +1007,22 @@ def notify(*args, **kwargs):
     level = params.get('level') or 'repo'
     domain_name = params.get('domain_name')
     if validate_callback(callback):
-        label = urllib.parse.quote(target, safe='')
-        compass_host = "https://oss-compass.org"
-        if domain_name == 'gitee':
-            compass_host = "https://compass.gitee.com"
-        report_url = f"{compass_host}/analyze?label={label}&level={level}"
-        callback['params']['password'] = config.get('HOOK_PASS')
-        callback['params']['domain'] = params['domain_name']
-        callback['params']['result'] = {'status': True, 'message': f"The analysis you submitted has been completed, and the address of the analysis report is: Report Link: {report_url}"}
-        resp = requests.post(callback['hook_url'], json=callback['params'])
-        return {'status': True, 'code': resp.status_code, 'message': resp.text}
+        if callback['params'].get("callback_type", "") != "tpc_software_callback":
+            label = urllib.parse.quote(target, safe='')
+            compass_host = "https://oss-compass.org"
+            if domain_name == 'gitee':
+                compass_host = "https://compass.gitee.com"
+            report_url = f"{compass_host}/analyze?label={label}&level={level}"
+            callback['params']['password'] = config.get('HOOK_PASS')
+            callback['params']['domain'] = params['domain_name']
+            callback['params']['result'] = {'status': True, 'message': f"The analysis you submitted has been completed, and the address of the analysis report is: Report Link: {report_url}"}
+            resp = requests.post(callback['hook_url'], json=callback['params'])
+            return {'status': True, 'code': resp.status_code, 'message': resp.text}
+        else:
+            callback['params']['project_url'] = target + ".git"
+            callback['params']['command_list'] = ["compass"]
+            callback['params']['scan_results'] = { "compass": { "status": True } }
+            resp = requests.post(callback['hook_url'], json=callback['params'])
+            return {'status': True, 'code': resp.status_code, 'message': resp.text}
     else:
         return {'status': False, 'message': 'no callback'}
