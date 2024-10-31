@@ -249,6 +249,7 @@ def caculate(*args, **kwargs):
             'issue_comments_index': f"{data['domain_name']}2-issues_enriched",
             'pr_comments_index': f"{data['domain_name']}2-pulls_enriched",
             'contributors_index': f"{data['domain_name']}-contributors_org_repo",
+            'contributors_enriched_index': f"{data['domain_name']}-contributors_org_repo_enriched",
             'release_index': f"{data['domain_name']}-releases_enriched",
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_custom_v1",
             'from_date': (datetime.now() - timedelta(days=30 * 6)).strftime('%Y-%m-%d'),
