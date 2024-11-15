@@ -252,7 +252,7 @@ def caculate(*args, **kwargs):
             'contributors_enriched_index': f"{data['domain_name']}-contributors_org_repo_enriched",
             'release_index': f"{data['domain_name']}-releases_enriched",
             'out_index': f"{config.get('METRICS_OUT_INDEX')}_custom_v1",
-            'from_date': (datetime.now() - timedelta(days=30 * 6)).strftime('%Y-%m-%d'),
+            'from_date': (datetime.now() - timedelta(days=30 * 12)).strftime('%Y-%m-%d'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             'level': params['level'],
             'community': data['project_key'],
