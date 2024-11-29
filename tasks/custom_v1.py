@@ -40,7 +40,10 @@ def extract(self, *args, **kwargs):
     }
 
     for url in urls:
-        label = tools.normalize_url(url)
+        if "https://" in url:
+            label = tools.normalize_url(url)
+        else:
+            label = url
         data = {}
         data['project_url'] = label
         data['domain_name'] = tools.extract_domain(label)
@@ -75,14 +78,33 @@ def initialize(*args, **kwargs):
         key = data['project_key']
         url = data['project_url']
         domain_name = data['domain_name']
-
-
-        metrics_data = {}
-        metrics_data[key] = {}
-        metrics_data[key][domain_name] = [url]
         metrics_data_path = join(metrics_dir, f"{key}.json")
-        with open(metrics_data_path, 'w') as jsonfile:
-            json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
+        if "https://" in url:
+            metrics_data = {}
+            metrics_data[key] = {}
+            metrics_data[key][domain_name] = [url]
+            with open(metrics_data_path, 'w') as jsonfile:
+                json.dump(metrics_data, jsonfile, indent=4, sort_keys=True)
+        else:
+            # community
+            yml_url = 'https://raw.githubusercontent.com/oss-compass/compass-projects-information/main/communities/' + url + '.yml'
+            community_data = {}
+            community_data['project_yaml'] = tools.load_yaml_template(yml_url)
+            input_data = community_data['project_yaml']
+            domain_name = 'github' if 'github.com' in input_data["community_org_url"] else 'gitee'
+            community_name = input_data["community_name"]
+
+            output_data = {
+                f"{domain_name}-{community_name}": {
+                    f"{domain_name}-software-artifact": input_data["resource_types"].get(
+                        "software-artifact-repositories", {}).get("repo_urls", []),
+                    f"{domain_name}-governance": input_data["resource_types"].get(
+                        "governance-repositories", {}).get("repo_urls", [])
+                }
+            }
+
+            with open(metrics_data_path, 'w') as jsonfile:
+                json.dump(output_data, jsonfile, indent=4, sort_keys=True)
 
         project_data = {}
         project_data = tools.gen_project_section({}, domain_name, key, url)
