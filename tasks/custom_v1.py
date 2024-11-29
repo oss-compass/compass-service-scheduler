@@ -255,7 +255,7 @@ def caculate(*args, **kwargs):
             'from_date': (datetime.now() - timedelta(days=30 * 12)).strftime('%Y-%m-%d'),
             'end_date': datetime.now().strftime('%Y-%m-%d'),
             # 'level': params['level'],
-            'level': params['level'] if 'http' in data['project_url'] else 'community',
+            'level': params['level'] if 'https://' in data['project_url'] else 'community',
             'community': data['project_key'],
             'source': data['domain_name'],
             'json_file': join(params['project_metrics_dir'], f"{data['project_key']}.json"),
