@@ -92,6 +92,7 @@ def initialize(*args, **kwargs):
             community_data['project_yaml'] = tools.load_yaml_template(yml_url)
             input_data = community_data['project_yaml']
             domain_name = 'github' if 'github.com' in input_data["community_org_url"] else 'gitee'
+            data['domain_name'] = domain_name
             community_name = input_data["community_name"]
 
             output_data = {
@@ -286,6 +287,9 @@ def caculate(*args, **kwargs):
             'algorithm': params['algorithm'],
             'custom_fields': params['custom_fields']
         }
+
+        config_logging(metrics_cfg['params'],params['project_logs_dir'])
+
         params[f"{data['project_key']}_custom_metrics_started_at"] = datetime.now()
         params[f"{data['project_key']}_custom_metrics_params"] = metrics_cfg
         custom_model = BaseMetricsModel(**metrics_cfg['params'])
