@@ -20,6 +20,7 @@ insight.ETL_V1:
           - etl_v1.metrics.domain_persona
           - etl_v1.metrics.milestone_persona
           - etl_v1.metrics.role_persona
+          - etl_v1.metrics.license
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1
