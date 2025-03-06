@@ -120,6 +120,7 @@ def extract(self, *args, **kwargs):
     params['project_key'] = tools.normalize_key(url)
     params['project_hash'] = tools.hash_string(params['project_url'])
     params['raw'] = bool(payload.get('raw'))
+    params['license'] = bool(payload.get('license'))
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
@@ -1027,10 +1028,14 @@ def notify(*args, **kwargs):
     else:
         return {'status': False, 'message': 'no callback'}
 
-@task(name="etl_v1.metrics.license", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+@task(name="etl_v1.license", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def license(*args, **kwargs):
     params = args[0][0] if type(args[0]) == list else args[0]
     label = params.get('project_url') or params.get('project_key')
+    if not params['license']:
+        params['license_finished_at'] = 'skipped'
+        return params
+
     payload = {
         "username": config.get('TPC_SERVICE_API_USERNAME'),
         "password": config.get('TPC_SERVICE_API_PASSWORD')
@@ -1067,13 +1072,16 @@ def license(*args, **kwargs):
         "project_url": f"{label}.git",
         "callback_url": TPC_SERVICE_CALLBACK_URL,
         "task_metadata": {
-            "report_id": -1,
-            "report_metric_id": -1
+            "report_type": -1
         }
     }
     result = base_post_request("opencheck", payload, token=token)
     # print(f"Analyze metric by TPC service info: {result}")
     if result["status"]:
-        return {'status': True, 'message': result['body']}
+        license_result = {'status': True, 'message': result['body']}
+        params["license_result"] = license_result
+        return params
     else:
-        return {'status': False, 'message': 'no callback'}
+        license_result = {'status': False, 'message': 'no callback'}
+        params["license_result"] = license_result
+        return params
