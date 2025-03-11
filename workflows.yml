@@ -7,6 +7,7 @@ insight.ETL_V1:
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
+    - etl_v1.license
     - etl_v1.expire_enriched
     - etl_v1.enrich
     - etl_v1.contributors_refresh
@@ -109,6 +110,7 @@ insight.ETL_V1_TPC:
     - etl_v1.setup
     - etl_v1.panels
     - etl_v1.raw
+    - etl_v1.license
     - etl_v1.expire_enriched
     - etl_v1.enrich
     - etl_v1.contributors_refresh

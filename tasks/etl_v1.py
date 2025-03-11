@@ -120,6 +120,7 @@ def extract(self, *args, **kwargs):
     params['project_key'] = tools.normalize_key(url)
     params['project_hash'] = tools.hash_string(params['project_url'])
     params['raw'] = bool(payload.get('raw'))
+    params['license'] = bool(payload.get('license'))
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
@@ -1026,3 +1027,61 @@ def notify(*args, **kwargs):
             return {'status': True, 'code': resp.status_code, 'message': resp.text}
     else:
         return {'status': False, 'message': 'no callback'}
+
+@task(name="etl_v1.license", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def license(*args, **kwargs):
+    params = args[0][0] if type(args[0]) == list else args[0]
+    label = params.get('project_url') or params.get('project_key')
+    if not params['license']:
+        params['license_finished_at'] = 'skipped'
+        return params
+
+    payload = {
+        "username": config.get('TPC_SERVICE_API_USERNAME'),
+        "password": config.get('TPC_SERVICE_API_PASSWORD')
+    }
+
+    def base_post_request(request_path, payload, token=None):
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"JWT {token}"
+        try:
+            TPC_SERVICE_API_ENDPOINT = config.get('TPC_SERVICE_API_ENDPOINT')
+            response = requests.post(
+                f"{TPC_SERVICE_API_ENDPOINT}/{request_path}",
+                json=payload,
+                headers=headers
+            )
+            response.raise_for_status()
+            resp_data = response.json()
+            if "error" in resp_data:
+                return {"status": False, "message": f"Error: {resp_data.get('description', 'Unknown error')}"}
+            return {"status": True, "body": resp_data}
+        except requests.RequestException as ex:
+            return {"status": False, "message": str(ex)}
+
+    result = base_post_request("auth", payload)
+    if not result["status"]:
+        return {'status': False, 'message': 'no auth'}
+    token = result["body"]["access_token"]
+
+    commands = ["scancode","osv-scanner"]
+    TPC_SERVICE_CALLBACK_URL = config.get("TPC_SERVICE_SERVICE_CALLBACK_URL")
+    payload = {
+        "commands": commands,
+        "project_url": f"{label}.git",
+        "callback_url": TPC_SERVICE_CALLBACK_URL,
+        "task_metadata": {
+            "report_type": -1
+        }
+    }
+    result = base_post_request("opencheck", payload, token=token)
+    # print(f"Analyze metric by TPC service info: {result}")
+    if result["status"]:
+        license_result = {'status': True, 'message': result['body']}
+        params["license_result"] = license_result
+        return params
+    else:
+        license_result = {'status': False, 'message': 'no callback'}
+        params["license_result"] = license_result
+        return params
