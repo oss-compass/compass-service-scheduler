@@ -41,8 +41,8 @@ def extract_url_info(url):
 
 def extract_domain(url):
     uri = urlparse(url)
-    return 'gitee' if tldextract.extract(uri.netloc).domain == 'gitee' else 'github'
-
+    return tldextract.extract(uri.netloc).domain
+    
 def extract_path(url):
     uri = urlparse(url)
     return uri.path
@@ -168,7 +168,7 @@ def url_is_valid(url):
     return re.match(regex, url) is not None
 
 def gen_project_section(project_data, domain_name, key, url):
-    if domain_name == 'gitee':
+    if domain_name in ['gitee', 'gitcode']:
         project_data[key] = {}
         project_data[key]['git'] = [f"{url}.git"]
         project_data[key][domain_name] = [url]
@@ -200,7 +200,7 @@ def load_yaml_template(url):
     }
     uri = urlparse(url)
     domain_name = tldextract.extract(uri.netloc).domain
-    if domain_name == 'gitee':
+    if domain_name in ['gitee', 'gitcode']:
         return yaml.safe_load(requests.get(url, allow_redirects=True).text)
     else:
         return yaml.safe_load(requests.get(url, allow_redirects=True, proxies=proxies).text)
@@ -208,7 +208,7 @@ def load_yaml_template(url):
 
 
 def count_repos_group(yaml):
-    count, gitee_count, github_count = 0, 0, 0
+    count, gitee_count, github_count, gitcode_count = 0, 0, 0, 0
     for (project_type, project_info) in yaml['resource_types'].items():
         suffix = None
         if project_type == 'software-artifact-repositories' or \
@@ -228,8 +228,10 @@ def count_repos_group(yaml):
                     gitee_count += 1
                 if extract_domain(project_url) == 'github':
                     github_count += 1
+                if extract_domain(project_url) == 'gitcode':
+                    gitcode_count += 1
                 count += 1
-    return count, gitee_count, github_count
+    return count, gitee_count, github_count, gitcode_count
 
 def count_repos(yaml):
     return count_repos_group(yaml)[0]
