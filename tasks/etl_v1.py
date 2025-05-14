@@ -31,6 +31,8 @@ from compass_model.contributor.productivity.milestone_persona_metrics_model impo
 from compass_model.contributor.productivity.role_persona_metrics_model import RolePersonaMetricsModel
 
 from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
+from compass_metrics_model.metrics_model_custom import MetricsModelCustom
+
 
 DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
@@ -1085,3 +1087,64 @@ def license(*args, **kwargs):
         license_result = {'status': False, 'message': 'no callback'}
         params["license_result"] = license_result
         return params
+
+
+@task(name="etl_v1.metrics.custom_metrics", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metric(*args, **kwargs):
+    params = args[0][0] if type(args[0]) == list else (args)[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+
+    params['custom_metrics_started_at'] = datetime.now()
+    if params.get('custom_metrics'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+
+
+        metrics_param = params.get('metrics_param')
+        # custom metrics_param
+        # {
+        #     "metric_list": ["commit_frequency", "bug_issue_open_time"],
+        #     "version_number": "v1.23"
+        # }
+
+        out_index = f"{config.get('METRICS_OUT_INDEX')}_custom_v2"
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': out_index,
+            'from_date': from_date,
+            'end_date': end_date,
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path'],
+            'contributors_enriched_index': params['project_contributors_enriched_index'],
+            'metrics_param': metrics_param
+        }
+        params['custom_metrics_params'] = metrics_cfg
+
+        model_role_persona = MetricsModelCustom(**metrics_cfg['params'])
+        model_role_persona.metrics_model_custom(metrics_cfg['url'])
+
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'custom_metrics': True, 'from-date': from_date, 'to-date': end_date})
+
+        params['custom_metrics'] = datetime.now()
+    else:
+        params['custom_metrics_finished_at'] = 'skipped'
+    return params
