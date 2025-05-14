@@ -1140,10 +1140,6 @@ def metric(*args, **kwargs):
         model_role_persona = MetricsModelCustom(**metrics_cfg['params'])
         model_role_persona.metrics_model_custom(metrics_cfg['url'])
 
-        if params['level'] == 'community' and params.get('refresh_sub_repos'):
-            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
-                                          {'custom_metrics': True, 'from-date': from_date, 'to-date': end_date})
-
         params['custom_metrics'] = datetime.now()
     else:
         params['custom_metrics_finished_at'] = 'skipped'
