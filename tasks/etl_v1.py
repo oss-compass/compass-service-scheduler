@@ -484,6 +484,7 @@ def setup(*args, **kwargs):
             'github2:issue', 'github2:pull',
             'githubql:event', 'githubql:stargazer', 'githubql:fork'])
         extra = {'api-token': config.get('GITHUB_API_TOKEN')}
+        graphql_token = {'api-token': config.get('GITHUB_GRAPHQL_API_TOKEN')}
         github_proxy = config.get('GITHUB_PROXY')
         if github_proxy:
             extra['proxy'] = github_proxy
@@ -492,9 +493,9 @@ def setup(*args, **kwargs):
         setup['github:pull'] = {**pulls_cfg, **extra}
         setup['github2:pull'] = {**pulls2_cfg, **extra}
         setup['github:repo'] = {**repo_cfg, **extra}
-        setup['githubql:event'] = {**event_cfg, **extra}
-        setup['githubql:stargazer'] = {**stargazer_cfg, **extra}
-        setup['githubql:fork'] = {**fork_cfg, **extra}
+        setup['githubql:event'] = {**event_cfg, **extra, **graphql_token}
+        setup['githubql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
+        setup['githubql:fork'] = {**fork_cfg, **extra, **graphql_token}
     else:
         pass
 
