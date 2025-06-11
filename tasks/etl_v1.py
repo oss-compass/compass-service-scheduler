@@ -136,6 +136,7 @@ def extract(self, *args, **kwargs):
     params['metrics_domain_persona'] = bool(payload.get('metrics_domain_persona'))
     params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
+    params['custom_metrics'] = bool(payload.get('custom_metrics'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
