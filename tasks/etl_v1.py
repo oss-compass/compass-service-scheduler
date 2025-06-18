@@ -38,7 +38,7 @@ DEFAULT_CONFIG_DIR = 'analysis_data'
 CFG_NAME = 'setup.cfg'
 CFG_TEMPLATE = 'setup-template.cfg'
 JSON_NAME = 'project.json'
-SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com']
+SUPPORT_DOMAINS = ['gitee.com', 'github.com', 'raw.githubusercontent.com', 'gitcode.com']
 
 
 def validate_callback(callback):
@@ -169,8 +169,13 @@ def extract_group(self, *args, **kwargs):
     params['project_yaml'] = tools.load_yaml_template(project_yaml_url)
     params['project_key'] = params['project_yaml']['community_name']
     params['project_types'] = params['project_yaml']['resource_types']
-    count, gitee_count, github_count = tools.count_repos_group(params['project_yaml'])
-    params['domain_name'] = 'gitee' if gitee_count > github_count else 'github'
+    count, gitee_count, github_count, gitcode = tools.count_repos_group(params['project_yaml'])
+    data_count = {
+        'gitee': gitee_count,
+        'github': github_count,
+        'gitcode': gitcode,
+    }
+    params['domain_name'] = max(data_count, key=data_count.get)
     params['project_hash'] = tools.hash_string(params['project_yaml_url'])
     params['raw'] = bool(payload.get('raw'))
     params['identities_load'] = bool(payload.get('identities_load'))
@@ -363,9 +368,9 @@ def setup(*args, **kwargs):
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
         'category': 'commit',
-        # 'studies': '[enrich_git_branches]' 
+        'studies': '[enrich_git_branches]' 
     }
-    # setup['enrich_git_branches'] = {'run_month_days': [i for i in range(1, 32)]}
+    setup['enrich_git_branches'] = {'run_month_days': [i for i in range(1, 32)]}
 
     issues_cfg = {
         'raw_index': input_raw_issues_index,
@@ -465,39 +470,42 @@ def setup(*args, **kwargs):
         watch_cfg['to-date'] = params.get('to-date')
     
 
-    if domain_name == 'gitee':
+    if domain_name in ['gitee', 'gitcode']:
+        if domain_name == 'gitee':
+            extra = {'api-token': config.get('GITEE_API_TOKEN')}
+        if domain_name == 'gitcode':
+            extra = {'api-token': config.get('GITCODE_API_TOKEN')}
         backends.extend([
-            'gitee', 'gitee:pull', 'gitee:repo',
-            'gitee2:issue', 'gitee2:pull',
-            'gitee:stargazer', 'gitee:fork', 'gitee:watch', 'gitee:event'])
-        extra = {'api-token': config.get('GITEE_API_TOKEN')}
-        setup['gitee'] = {**issues_cfg, **extra}
-        setup['gitee2:issue'] = {**issues2_cfg, **extra}
-        setup['gitee:pull'] = {**pulls_cfg, **extra}
-        setup['gitee2:pull'] = {**pulls2_cfg, **extra}
-        setup['gitee:repo'] = {**repo_cfg, **extra}
-        setup['gitee:stargazer'] = {**stargazer_cfg, **extra}
-        setup['gitee:fork'] = {**fork_cfg, **extra}
-        setup['gitee:event'] = {**event_cfg, **extra}
-        setup['gitee:watch'] = {**watch_cfg, **extra}
+            f'{domain_name}', f'{domain_name}:pull', f'{domain_name}:repo',
+            f'{domain_name}2:issue', f'{domain_name}2:pull',
+            f'{domain_name}:stargazer', f'{domain_name}:fork', f'{domain_name}:watch', f'{domain_name}:event'])
+        setup[f'{domain_name}'] = {**issues_cfg, **extra}
+        setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
+        setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
+        setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
+        setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
+        setup[f'{domain_name}:stargazer'] = {**stargazer_cfg, **extra}
+        setup[f'{domain_name}:fork'] = {**fork_cfg, **extra}
+        setup[f'{domain_name}:event'] = {**event_cfg, **extra}
+        setup[f'{domain_name}:watch'] = {**watch_cfg, **extra}
     elif domain_name == 'github':
         backends.extend([
-            'github:issue', 'github:pull', 'github:repo',
-            'github2:issue', 'github2:pull',
-            'githubql:event', 'githubql:stargazer', 'githubql:fork'])
+            f'{domain_name}:issue', f'{domain_name}:pull', f'{domain_name}:repo',
+            f'{domain_name}2:issue', f'{domain_name}2:pull',
+            f'{domain_name}ql:event', f'{domain_name}ql:stargazer', f'{domain_name}ql:fork'])
         extra = {'api-token': config.get('GITHUB_API_TOKEN')}
         graphql_token = {'api-token': config.get('GITHUB_GRAPHQL_API_TOKEN')}
         github_proxy = config.get('GITHUB_PROXY')
         if github_proxy:
             extra['proxy'] = github_proxy
-        setup['github:issue'] = {**issues_cfg, **extra}
-        setup['github2:issue'] = {**issues2_cfg, **extra}
-        setup['github:pull'] = {**pulls_cfg, **extra}
-        setup['github2:pull'] = {**pulls2_cfg, **extra}
-        setup['github:repo'] = {**repo_cfg, **extra}
-        setup['githubql:event'] = {**event_cfg, **extra, **graphql_token}
-        setup['githubql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
-        setup['githubql:fork'] = {**fork_cfg, **extra, **graphql_token}
+        setup[f'{domain_name}:issue'] = {**issues_cfg, **extra}
+        setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
+        setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
+        setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
+        setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
+        setup[f'{domain_name}ql:event'] = {**event_cfg, **extra, **graphql_token}
+        setup[f'{domain_name}ql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
+        setup[f'{domain_name}ql:fork'] = {**fork_cfg, **extra, **graphql_token}
     else:
         pass
 
@@ -1016,7 +1024,7 @@ def notify(*args, **kwargs):
         if callback['params'].get("callback_type", "") != "tpc_software_callback":
             label = urllib.parse.quote(target, safe='')
             compass_host = "https://oss-compass.org"
-            if domain_name == 'gitee':
+            if domain_name in ['gitee', 'gitcode']:
                 compass_host = "https://compass.gitee.com"
             report_url = f"{compass_host}/analyze?label={label}&level={level}"
             callback['params']['password'] = config.get('HOOK_PASS')
