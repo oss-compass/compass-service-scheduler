@@ -368,9 +368,9 @@ def setup(*args, **kwargs):
         'raw_index': input_git_raw_index,
         'enriched_index': input_git_enriched_index,
         'category': 'commit',
-        # 'studies': '[enrich_git_branches]' 
+        'studies': '[enrich_git_branches]' 
     }
-    # setup['enrich_git_branches'] = {'run_month_days': [i for i in range(1, 32)]}
+    setup['enrich_git_branches'] = {'run_month_days': [i for i in range(1, 32)]}
 
     issues_cfg = {
         'raw_index': input_raw_issues_index,
