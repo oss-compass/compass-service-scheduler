@@ -363,6 +363,54 @@ def setup(*args, **kwargs):
 
     input_refresh_contributors_index = f"{domain_name}-contributors_org_repo"
     input_refresh_contributors_enriched_index = f"{domain_name}-contributors_org_repo_enriched"
+    
+    # model_index
+    metrics_out_index = config.get('METRICS_OUT_INDEX')
+    
+    model_activity_index = f"{metrics_out_index}_activity"
+    model_community_index = f"{metrics_out_index}_community"
+    model_codequality_index = f"{metrics_out_index}_codequality"
+    model_group_activity_index = f"{metrics_out_index}_group_activity"
+    model_domain_persona_index = f"{metrics_out_index}_domain_persona"
+    model_milestone_persona_index = f"{metrics_out_index}_milestone_persona"
+    model_role_persona_index = f"{metrics_out_index}_role_persona"
+    model_custom_index = f"{metrics_out_index}_custom"
+    
+    
+    index_version = config.get('INDEX_VERSION')
+    if index_version:
+        input_git_raw_index = f"{input_git_raw_index}_{index_version}"
+        input_git_enriched_index = f"{input_git_enriched_index}_{index_version}"
+        input_repo_raw_index = f"{input_repo_raw_index}_{index_version}"
+        input_repo_enriched_index = f"{input_repo_enriched_index}_{index_version}"
+        input_raw_issues_index = f"{input_raw_issues_index}_{index_version}"
+        input_enrich_issues_index = f"{input_enrich_issues_index}_{index_version}"
+        input_raw_issues2_index = f"{input_raw_issues2_index}_{index_version}"
+        input_enrich_issues2_index = f"{input_enrich_issues2_index}_{index_version}"
+        input_raw_pulls_index = f"{input_raw_pulls_index}_{index_version}"
+        input_enrich_pulls_index = f"{input_enrich_pulls_index}_{index_version}"
+        input_raw_pulls2_index = f"{input_raw_pulls2_index}_{index_version}"
+        input_enrich_pulls2_index = f"{input_enrich_pulls2_index}_{index_version}"
+        input_enrich_releases_index = f"{input_enrich_releases_index}_{index_version}"
+        input_event_raw_index = f"{input_event_raw_index}_{index_version}"
+        input_event_enriched_index = f"{input_event_enriched_index}_{index_version}"
+        input_stargazer_raw_index = f"{input_stargazer_raw_index}_{index_version}"
+        input_stargazer_enriched_index = f"{input_stargazer_enriched_index}_{index_version}"
+        input_fork_raw_index = f"{input_fork_raw_index}_{index_version}"
+        input_fork_enriched_index = f"{input_fork_enriched_index}_{index_version}"
+        input_watch_raw_index = f"{input_watch_raw_index}_{index_version}"
+        input_watch_enriched_index = f"{input_watch_enriched_index}_{index_version}"
+        input_refresh_contributors_index = f"{input_refresh_contributors_index}_{index_version}"
+        input_refresh_contributors_enriched_index = f"{input_refresh_contributors_enriched_index}_{index_version}"
+        
+        model_activity_index = f"{model_activity_index}_{index_version}"
+        model_community_index = f"{model_community_index}_{index_version}"
+        model_codequality_index = f"{model_codequality_index}_{index_version}"
+        model_group_activity_index = f"{model_group_activity_index}_{index_version}"
+        model_domain_persona_index = f"{model_domain_persona_index}_{index_version}"
+        model_milestone_persona_index = f"{model_milestone_persona_index}_{index_version}"
+        model_role_persona_index = f"{model_role_persona_index}_{index_version}"
+        model_custom_index = f"{model_custom_index}_{index_version}"
 
     setup['git'] = {
         'raw_index': input_git_raw_index,
@@ -532,6 +580,17 @@ def setup(*args, **kwargs):
 
     params['project_contributors_index'] = input_refresh_contributors_index
     params['project_contributors_enriched_index'] = input_refresh_contributors_enriched_index
+    
+    # model index
+    params['model_activity_index'] = model_activity_index
+    params['model_community_index'] = model_community_index
+    params['model_codequality_index'] = model_codequality_index
+    params['model_group_activity_index'] = model_group_activity_index
+    params['model_domain_persona_index'] = model_domain_persona_index
+    params['model_milestone_persona_index'] = model_milestone_persona_index
+    params['model_role_persona_index'] = model_role_persona_index
+    params['model_custom_index'] = model_custom_index
+    
     return params
 
 
@@ -734,7 +793,7 @@ def metrics_activity(*args, **kwargs):
             'pr_index': params['project_pulls_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_activity",
+            'out_index': params['model_activity_index'],
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
@@ -769,7 +828,7 @@ def metrics_community(*args, **kwargs):
             'pr_index': params['project_pulls_index'],
             'git_index': params['project_git_index'],
             'json_file': params['metrics_data_path'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_community",
+            'out_index': params['model_community_index'],
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'community': project_key,
@@ -800,7 +859,7 @@ def metrics_codequality(*args, **kwargs):
             'repo_index': params['project_repo_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_codequality",
+            'out_index': params['model_codequality_index'],
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
@@ -835,7 +894,7 @@ def metrics_group_activity(*args, **kwargs):
             'pr_index': params['project_pulls_index'],
             'json_file': params['metrics_data_path'],
             'git_index': params['project_git_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_group_activity",
+            'out_index': params['model_group_activity_index'],
             'git_branch': None,
             'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
             'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
@@ -868,7 +927,7 @@ def metrics_domain_persona(*args, **kwargs):
         es_client = Elasticsearch(
             elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
             timeout=180, max_retries=3, retry_on_timeout=True)
-        out_index = f"{config.get('METRICS_OUT_INDEX')}_domain_persona"
+        out_index = params['model_domain_persona_index']
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
@@ -882,7 +941,7 @@ def metrics_domain_persona(*args, **kwargs):
             'pr_comments_index': params['project_pulls2_index'],
             'contributors_index': params['project_contributors_index'],
             'release_index': params['project_release_index'],
-            'out_index': f"{config.get('METRICS_OUT_INDEX')}_domain_persona",
+            'out_index': out_index,
             'from_date': from_date,
             'end_date': end_date,
             'level': params['level'],
@@ -915,7 +974,7 @@ def metrics_milestone_persona(*args, **kwargs):
         es_client = Elasticsearch(
             elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
             timeout=180, max_retries=3, retry_on_timeout=True)
-        out_index = f"{config.get('METRICS_OUT_INDEX')}_milestone_persona"
+        out_index = params['model_milestone_persona_index']
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
@@ -962,7 +1021,7 @@ def metrics_role_persona(*args, **kwargs):
         es_client = Elasticsearch(
             elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
             timeout=180, max_retries=3, retry_on_timeout=True)
-        out_index = f"{config.get('METRICS_OUT_INDEX')}_role_persona"
+        out_index = params['model_role_persona_index']
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
@@ -1122,7 +1181,7 @@ def metric(*args, **kwargs):
         #     "version_number": "v1.23"
         # }
 
-        out_index = f"{config.get('METRICS_OUT_INDEX')}_custom_v2"
+        out_index = params['model_custom_index']
         from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
         end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
         metrics_cfg = {}
