@@ -29,6 +29,7 @@ from compass_metrics_model.metrics_model import (
 from compass_model.contributor.productivity.domain_persona_metrics_model import DomainPersonaMetricsModel
 from compass_model.contributor.productivity.milestone_persona_metrics_model import MilestonePersonaMetricsModel
 from compass_model.contributor.productivity.role_persona_metrics_model import RolePersonaMetricsModel
+from compass_model.software_artifact.robustness.criticality_score_metrics_model import CriticalityScoreMetricsModel 
 
 from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
 from compass_metrics_model.metrics_model_custom import MetricsModelCustom
@@ -136,6 +137,7 @@ def extract(self, *args, **kwargs):
     params['metrics_domain_persona'] = bool(payload.get('metrics_domain_persona'))
     params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
+    params['metrics_criticality_score'] = bool(payload.get('metrics_criticality_score'))
     params['custom_metrics'] = bool(payload.get('custom_metrics'))
     params['metrics_param'] = payload.get('metrics_param')
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
@@ -191,6 +193,7 @@ def extract_group(self, *args, **kwargs):
     params['metrics_domain_persona'] = bool(payload.get('metrics_domain_persona'))
     params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
+    params['metrics_criticality_score'] = bool(payload.get('metrics_criticality_score'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
@@ -374,6 +377,7 @@ def setup(*args, **kwargs):
     model_domain_persona_index = f"{metrics_out_index}_domain_persona"
     model_milestone_persona_index = f"{metrics_out_index}_milestone_persona"
     model_role_persona_index = f"{metrics_out_index}_role_persona"
+    model_criticality_score_index = f"{metrics_out_index}_criticality_score"
     model_custom_index = f"{metrics_out_index}_custom"
     
     
@@ -410,6 +414,7 @@ def setup(*args, **kwargs):
         model_domain_persona_index = f"{model_domain_persona_index}_{index_version}"
         model_milestone_persona_index = f"{model_milestone_persona_index}_{index_version}"
         model_role_persona_index = f"{model_role_persona_index}_{index_version}"
+        model_criticality_score_index = f"{model_criticality_score_index}_{index_version}"
         model_custom_index = f"{model_custom_index}_{index_version}"
 
     setup['git'] = {
@@ -589,6 +594,7 @@ def setup(*args, **kwargs):
     params['model_domain_persona_index'] = model_domain_persona_index
     params['model_milestone_persona_index'] = model_milestone_persona_index
     params['model_role_persona_index'] = model_role_persona_index
+    params['model_criticality_score_index'] = model_criticality_score_index
     params['model_custom_index'] = model_custom_index
     
     return params
@@ -1213,4 +1219,51 @@ def metric(*args, **kwargs):
         params['custom_metrics'] = datetime.now()
     else:
         params['custom_metrics_finished_at'] = 'skipped'
+    return params
+
+
+@task(name="etl_v1.metrics.criticality_score", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_criticality_score(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_criticality_score_started_at'] = datetime.now()
+
+    if params.get('metrics_criticality_score'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+        out_index = params['model_criticality_score_index']
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': out_index,
+            'from_date': from_date,
+            'end_date': end_date,
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path']
+        }
+        params['metrics_criticality_score_params'] = metrics_cfg
+        model_criticality_score = CriticalityScoreMetricsModel(**metrics_cfg['params'])
+        model_criticality_score.metrics_model_metrics(metrics_cfg['url'])
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'metrics_criticality_score': True, 'from-date': from_date, 'to-date': end_date})
+        params['metrics_criticality_score_finished_at'] = datetime.now()
+    else:
+        params['metrics_criticality_score_finished_at'] = 'skipped'
     return params
