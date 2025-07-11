@@ -6,8 +6,9 @@ insight.ETL_V1:
     - etl_v1.start
     - etl_v1.setup
     - etl_v1.panels
-    - etl_v1.raw
+    - etl_v1.opencheck_raw
     - etl_v1.license
+    - etl_v1.raw
     - etl_v1.expire_enriched
     - etl_v1.enrich
     - etl_v1.contributors_refresh
@@ -22,6 +23,8 @@ insight.ETL_V1:
           - etl_v1.metrics.milestone_persona
           - etl_v1.metrics.role_persona
           - etl_v1.metrics.custom_metrics
+          - etl_v1.metrics.criticality_score
+          - etl_v1.metrics.scorecard
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1
@@ -47,6 +50,7 @@ insight.ETL_V1_GROUP:
           - etl_v1.metrics.domain_persona
           - etl_v1.metrics.milestone_persona
           - etl_v1.metrics.role_persona
+          - etl_v1.metrics.criticality_score
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v2
@@ -110,8 +114,9 @@ insight.ETL_V1_TPC:
     - etl_v1.start
     - etl_v1.setup
     - etl_v1.panels
-    - etl_v1.raw
+    - etl_v1.opencheck_raw
     - etl_v1.license
+    - etl_v1.raw
     - etl_v1.expire_enriched
     - etl_v1.enrich
     - etl_v1.contributors_refresh
@@ -126,6 +131,8 @@ insight.ETL_V1_TPC:
           - etl_v1.metrics.milestone_persona
           - etl_v1.metrics.role_persona
           - etl_v1.metrics.custom_metrics
+          - etl_v1.metrics.criticality_score
+          - etl_v1.metrics.scorecard
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1_tpc
