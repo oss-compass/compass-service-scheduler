@@ -392,7 +392,7 @@ def setup(*args, **kwargs):
     model_role_persona_index = f"{metrics_out_index}_role_persona"
     model_criticality_score_index = f"{metrics_out_index}_criticality_score"
     model_scorecard_index = f"{metrics_out_index}_scorecard"
-    model_custom_index = f"{metrics_out_index}_custom"
+    model_custom_index = f"{metrics_out_index}_custom_v2"
     
     # opencheck index
     input_opencheck_index = "opencheck_raw"
