@@ -550,53 +550,62 @@ def setup(*args, **kwargs):
             extra = {'api-token': config.get('GITEE_API_TOKEN')}
         if domain_name == 'gitcode':
             extra = {'api-token': config.get('GITCODE_API_TOKEN')}
-        backends.extend([
-            f'{domain_name}', f'{domain_name}:pull', f'{domain_name}:repo',
-            f'{domain_name}2:issue', f'{domain_name}2:pull',
-            f'{domain_name}:stargazer', f'{domain_name}:fork', f'{domain_name}:watch', f'{domain_name}:event'])
         if 'issue' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}')
             setup[f'{domain_name}'] = {**issues_cfg, **extra}
         if 'issue2' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}2:issue')
             setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
         if 'pull' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:pull')
             setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
         if 'pull2' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}2:pull')
             setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
         if 'repo' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:repo')
             setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
         if 'stargazer' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:stargazer')
             setup[f'{domain_name}:stargazer'] = {**stargazer_cfg, **extra}
         if 'fork' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:fork')
             setup[f'{domain_name}:fork'] = {**fork_cfg, **extra}
         if 'event' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:event')
             setup[f'{domain_name}:event'] = {**event_cfg, **extra}
         if 'watch' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:watch')
             setup[f'{domain_name}:watch'] = {**watch_cfg, **extra}
     elif domain_name == 'github':
-        backends.extend([
-            f'{domain_name}:issue', f'{domain_name}:pull', f'{domain_name}:repo',
-            f'{domain_name}2:issue', f'{domain_name}2:pull',
-            f'{domain_name}ql:event', f'{domain_name}ql:stargazer', f'{domain_name}ql:fork'])
         extra = {'api-token': config.get('GITHUB_API_TOKEN')}
         graphql_token = {'api-token': config.get('GITHUB_GRAPHQL_API_TOKEN')}
         github_proxy = config.get('GITHUB_PROXY')
         if github_proxy:
             extra['proxy'] = github_proxy
         if 'issue' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:issue')
             setup[f'{domain_name}:issue'] = {**issues_cfg, **extra}
         if 'issue2' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}2:issue')
             setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
         if 'pull' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:pull')
             setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
         if 'pull2' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}2:pull')
             setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
         if 'repo' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}:repo')
             setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
         if 'event' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}ql:event')
             setup[f'{domain_name}ql:event'] = {**event_cfg, **extra, **graphql_token}
         if 'stargazer' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}ql:stargazer')
             setup[f'{domain_name}ql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
         if 'fork' in params['raw_enrich_setup']:
+            backends.append(f'{domain_name}ql:fork')
             setup[f'{domain_name}ql:fork'] = {**fork_cfg, **extra, **graphql_token}
     else:
         pass
