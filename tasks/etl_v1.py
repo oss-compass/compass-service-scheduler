@@ -61,6 +61,7 @@ def validate_callback(callback):
 #     },
 #     "raw":true,
 #     "enrich":true,
+#     "raw_enrich_setup": ["git","issue", "issue2", "pull", "pull2", "repo", "stargazer", "fork", "watch", "event"],
 #     "identities_load":true,
 #     "identities_merge":true,
 #     "panels":false,
@@ -139,6 +140,7 @@ def extract(self, *args, **kwargs):
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
+    params['raw_enrich_setup'] = payload.get('raw_enrich_setup') or ["git","issue", "issue2", "pull", "pull2", "repo", "stargazer", "fork", "watch", "event"]
     params['panels'] = bool(payload.get('panels'))
     params['level'] = ('community' if level == 'project' or level == 'community' else 'repo')
     params['debug'] = bool(payload.get('debug'))
@@ -196,6 +198,7 @@ def extract_group(self, *args, **kwargs):
     params['identities_load'] = bool(payload.get('identities_load'))
     params['identities_merge'] = bool(payload.get('identities_merge'))
     params['enrich'] = bool(payload.get('enrich'))
+    params['raw_enrich_setup'] = payload.get('raw_enrich_setup') or ["git","issue", "issue2", "pull", "pull2", "repo", "stargazer", "fork", "watch", "event"]
     params['panels'] = bool(payload.get('panels'))
     params['level'] = ('community' if level == 'project' or level == 'community' else 'repo')
     params['debug'] = bool(payload.get('debug'))
@@ -551,15 +554,24 @@ def setup(*args, **kwargs):
             f'{domain_name}', f'{domain_name}:pull', f'{domain_name}:repo',
             f'{domain_name}2:issue', f'{domain_name}2:pull',
             f'{domain_name}:stargazer', f'{domain_name}:fork', f'{domain_name}:watch', f'{domain_name}:event'])
-        setup[f'{domain_name}'] = {**issues_cfg, **extra}
-        setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
-        setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
-        setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
-        setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
-        setup[f'{domain_name}:stargazer'] = {**stargazer_cfg, **extra}
-        setup[f'{domain_name}:fork'] = {**fork_cfg, **extra}
-        setup[f'{domain_name}:event'] = {**event_cfg, **extra}
-        setup[f'{domain_name}:watch'] = {**watch_cfg, **extra}
+        if 'issue' in params['raw_enrich_setup']:
+            setup[f'{domain_name}'] = {**issues_cfg, **extra}
+        if 'issue2' in params['raw_enrich_setup']:
+            setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
+        if 'pull' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
+        if 'pull2' in params['raw_enrich_setup']:
+            setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
+        if 'repo' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
+        if 'stargazer' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:stargazer'] = {**stargazer_cfg, **extra}
+        if 'fork' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:fork'] = {**fork_cfg, **extra}
+        if 'event' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:event'] = {**event_cfg, **extra}
+        if 'watch' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:watch'] = {**watch_cfg, **extra}
     elif domain_name == 'github':
         backends.extend([
             f'{domain_name}:issue', f'{domain_name}:pull', f'{domain_name}:repo',
@@ -570,14 +582,22 @@ def setup(*args, **kwargs):
         github_proxy = config.get('GITHUB_PROXY')
         if github_proxy:
             extra['proxy'] = github_proxy
-        setup[f'{domain_name}:issue'] = {**issues_cfg, **extra}
-        setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
-        setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
-        setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
-        setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
-        setup[f'{domain_name}ql:event'] = {**event_cfg, **extra, **graphql_token}
-        setup[f'{domain_name}ql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
-        setup[f'{domain_name}ql:fork'] = {**fork_cfg, **extra, **graphql_token}
+        if 'issue' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:issue'] = {**issues_cfg, **extra}
+        if 'issue2' in params['raw_enrich_setup']:
+            setup[f'{domain_name}2:issue'] = {**issues2_cfg, **extra}
+        if 'pull' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:pull'] = {**pulls_cfg, **extra}
+        if 'pull2' in params['raw_enrich_setup']:
+            setup[f'{domain_name}2:pull'] = {**pulls2_cfg, **extra}
+        if 'repo' in params['raw_enrich_setup']:
+            setup[f'{domain_name}:repo'] = {**repo_cfg, **extra}
+        if 'event' in params['raw_enrich_setup']:
+            setup[f'{domain_name}ql:event'] = {**event_cfg, **extra, **graphql_token}
+        if 'stargazer' in params['raw_enrich_setup']:
+            setup[f'{domain_name}ql:stargazer'] = {**stargazer_cfg, **extra, **graphql_token}
+        if 'fork' in params['raw_enrich_setup']:
+            setup[f'{domain_name}ql:fork'] = {**fork_cfg, **extra, **graphql_token}
     else:
         pass
 
