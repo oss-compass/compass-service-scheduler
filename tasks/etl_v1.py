@@ -1173,7 +1173,7 @@ def license(*args, **kwargs):
     def base_post_request(request_path, payload, token=None):
         headers = {"Content-Type": "application/json"}
         if token:
-            headers["Authorization"] = f"JWT {token}"
+            headers["Authorization"] = f"Bearer {token}"
         try:
             TPC_SERVICE_API_ENDPOINT = config.get('TPC_SERVICE_API_ENDPOINT')
             response = requests.post(
@@ -1336,7 +1336,7 @@ def opencheck_raw(*args, **kwargs):
     def base_post_request(request_path, payload, token=None):
         headers = {"Content-Type": "application/json"}
         if token:
-            headers["Authorization"] = f"JWT {token}"
+            headers["Authorization"] = f"Bearer {token}"
         try:
             TPC_SERVICE_API_ENDPOINT = config.get('TPC_SERVICE_API_ENDPOINT')
             response = requests.post(
