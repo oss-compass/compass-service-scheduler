@@ -10,6 +10,7 @@ import urllib.parse
 from os.path import join, exists, abspath
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 from . import config_logging
 from ..utils import tools
@@ -801,6 +802,9 @@ def contributors_refresh(*args, **kwargs):
     config_logging(params['debug'], params['project_logs_dir'])
     params['contributors_refresh_started_at'] = datetime.now()
     if params['identities_load'] or params['identities_merge']:
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        from_date = (datetime.strptime(from_date, "%Y-%m-%d") - relativedelta(months=4)).strftime("%Y-%m-%d")
+
         metrics_cfg = {}
         metrics_cfg['url'] = config.get('ES_URL')
         metrics_cfg['params'] = {
@@ -812,7 +816,7 @@ def contributors_refresh(*args, **kwargs):
             'git_index': params['project_git_index'],
             'contributors_index': params['project_contributors_index'],
             'contributors_enriched_index': params['project_contributors_enriched_index'],
-            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'from_date': from_date,
             'end_date': params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d'),
             'repo_index': params['project_repo_index'],
             'event_index': params['project_event_index'],
