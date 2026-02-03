@@ -223,6 +223,13 @@ def extract_group(self, *args, **kwargs):
     params['metrics_milestone_persona'] = bool(payload.get('metrics_milestone_persona'))
     params['metrics_role_persona'] = bool(payload.get('metrics_role_persona'))
     params['metrics_criticality_score'] = bool(payload.get('metrics_criticality_score'))
+    params['metrics_collaboration_quality'] = bool(payload.get('metrics_collaboration_quality'))
+    params['metrics_response_timeliness'] = bool(payload.get('metrics_response_timeliness'))
+    params['metrics_community_popularity'] = bool(payload.get('metrics_community_popularity'))
+    params['metrics_contribution_activity'] = bool(payload.get('metrics_contribution_activity'))
+    params['metrics_developer_base'] = bool(payload.get('metrics_developer_base'))
+    params['metrics_organizational_governance'] = bool(payload.get('metrics_organizational_governance'))
+    params['metrics_personal_governance'] = bool(payload.get('metrics_personal_governance'))
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
     params['force_refresh_enriched'] = bool(payload.get('force_refresh_enriched'))
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
