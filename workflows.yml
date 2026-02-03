@@ -25,6 +25,13 @@ insight.ETL_V1:
           - etl_v1.metrics.custom_metrics
           - etl_v1.metrics.criticality_score
           - etl_v1.metrics.scorecard
+          - etl_v1.metrics.collaboration_quality
+          - etl_v1.metrics.response_timeliness
+          - etl_v1.metrics.community_popularity
+          - etl_v1.metrics.contribution_activity
+          - etl_v1.metrics.developer_base
+          - etl_v1.metrics.organizational_governance
+          - etl_v1.metrics.personal_governance
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1

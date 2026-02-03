@@ -32,6 +32,17 @@ from compass_model.contributor.productivity.role_persona_metrics_model import Ro
 from compass_model.software_artifact.robustness.criticality_score_metrics_model import CriticalityScoreMetricsModel 
 from compass_model.software_artifact.robustness.scorecard_metrics_model import ScorecardMetricsModel 
 
+from compass_model_v2.collaboration_efficiency.collaboration_quality_metrics_model import CollaborationQualityMetricsModel
+from compass_model_v2.collaboration_efficiency.response_timeliness_metrics_model import  ResponseTimelinessMetricsModel
+
+from compass_model_v2.community_vitality.community_popularity_metrics_model import CommunityPopularityMetricsModel
+from compass_model_v2.community_vitality.contribution_activity_metrics_model import ContributionActivityMetricsModel
+from compass_model_v2.community_vitality.developer_base_metrics_model import DeveloperBaseMetricsModel
+
+from compass_model_v2.development_governance.organizational_governance_metrics_model import OrganizationalGovernanceMetricsModel
+from compass_model_v2.development_governance.personal_governance_metrics_model import PersonalGovernanceMetricsModel
+
+
 from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
 from compass_metrics_model.metrics_model_custom import MetricsModelCustom
 
@@ -158,6 +169,7 @@ def extract(self, *args, **kwargs):
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
     params['to-date'] = payload.get('to-date')
+    params['period'] = payload.get('period')
 
     return params
 
@@ -382,7 +394,8 @@ def setup(*args, **kwargs):
     
     # model_index
     metrics_out_index = config.get('METRICS_OUT_INDEX')
-    
+
+
     model_activity_index = f"{metrics_out_index}_activity"
     model_community_index = f"{metrics_out_index}_community"
     model_codequality_index = f"{metrics_out_index}_codequality"
@@ -393,6 +406,15 @@ def setup(*args, **kwargs):
     model_criticality_score_index = f"{metrics_out_index}_criticality_score"
     model_scorecard_index = f"{metrics_out_index}_scorecard"
     model_custom_index = f"{metrics_out_index}_custom_v2"
+
+    model_collaboration_quality_index = f"{metrics_out_index}_v2_collaboration_quality"
+    model_response_timeliness_index = f"{metrics_out_index}_v2_response_timeliness"
+    model_community_popularity_index = f"{metrics_out_index}_v2_community_popularity"
+    model_contribution_activity_index = f"{metrics_out_index}_v2_contribution_activity"
+    model_developer_base_index = f"{metrics_out_index}_v2_developer_base"
+    model_organizational_governance_index = f"{metrics_out_index}_v2_organizational_governance"
+    model_personal_governance_index = f"{metrics_out_index}_v2_personal_governance"
+
     
     # opencheck index
     input_opencheck_index = "opencheck_raw"
@@ -616,7 +638,15 @@ def setup(*args, **kwargs):
     params['model_criticality_score_index'] = model_criticality_score_index
     params['model_scorecard_index'] = model_scorecard_index
     params['model_custom_index'] = model_custom_index
-    
+
+    params['model_collaboration_quality_index'] = model_collaboration_quality_index
+    params['model_response_timeliness_index'] = model_response_timeliness_index
+    params['model_community_popularity_index'] = model_community_popularity_index
+    params['model_contribution_activity_index'] = model_contribution_activity_index
+    params['model_developer_base_index'] = model_developer_base_index
+    params['model_organizational_governance_index'] = model_organizational_governance_index
+    params['model_personal_governance_index'] = model_personal_governance_index
+
     params['project_opencheck_index'] = input_opencheck_index
  
     return params
@@ -1408,3 +1438,173 @@ def metrics_scorecard(*args, **kwargs):
     else:
         params['metrics_scorecard_finished_at'] = 'skipped'
     return params
+
+def get_common_metrics_params(params, out_index_key):
+    return {
+        'issue_index': params['project_issues_index'],
+        'repo_index': params['project_repo_index'],
+        'pr_index': params['project_pulls_index'],
+        'json_file': params['metrics_data_path'],
+        'git_index': params['project_git_index'],
+        'out_index': params[out_index_key],
+        'git_branch': None,
+        'from_date': params.get('from-date') or config.get('METRICS_FROM_DATE'),
+        'end_date': params.get('to-date') or datetime.now().strftime('%Y-%m-%d'),
+        'community': params['project_key'],
+        'level': params['level'],
+        'company': None,
+        'issue_comments_index': params['project_issues2_index'],
+        'pr_comments_index': params['project_pulls2_index'],
+        'contributors_index': params['project_contributors_index']
+    }
+
+@task(name="etl_v1.metrics.role_persona", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_role_persona(*args, **kwargs):
+    params = args[0]
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params['metrics_role_persona_started_at'] = datetime.now()
+
+    if params.get('metrics_role_persona'):
+        elastic_url = config.get('ES_URL')
+        is_https = urlparse(elastic_url).scheme == 'https'
+        es_client = Elasticsearch(
+            elastic_url, use_ssl=is_https, verify_certs=False, connection_class=RequestsHttpConnection,
+            timeout=180, max_retries=3, retry_on_timeout=True)
+        out_index = params['model_role_persona_index']
+        from_date = params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE')
+        end_date = params.get('to-date') if params.get('to-date') else datetime.now().strftime('%Y-%m-%d')
+        metrics_cfg = {}
+        metrics_cfg['url'] = config.get('ES_URL')
+        metrics_cfg['params'] = {
+            'repo_index': params['project_repo_index'],
+            'git_index': params['project_git_index'],
+            'issue_index': params['project_issues_index'],
+            'pr_index': params['project_pulls_index'],
+            'issue_comments_index': params['project_issues2_index'],
+            'pr_comments_index': params['project_pulls2_index'],
+            'contributors_index': params['project_contributors_index'],
+            'release_index': params['project_release_index'],
+            'out_index': out_index,
+            'from_date': params.get('from-date') if params.get('from-date') else config.get('METRICS_FROM_DATE'),
+            'end_date': end_date,
+            'level': params['level'],
+            'community': project_key,
+            'source': params['domain_name'],
+            'json_file': params['metrics_data_path'],
+            'contributors_enriched_index': params['project_contributors_enriched_index']
+        }
+        params['metrics_role_persona_params'] = metrics_cfg
+        model_role_persona = RolePersonaMetricsModel(**metrics_cfg['params'])
+        model_role_persona.metrics_model_metrics(metrics_cfg['url'])
+        if params['level'] == 'community' and params.get('refresh_sub_repos'):
+            tools.check_sub_repos_metrics(es_client, out_index, params['project_types'],
+                                          {'metrics_role_persona': True, 'from-date': from_date, 'to-date': end_date})
+        params['metrics_role_persona_finished_at'] = datetime.now()
+    else:
+        params['metrics_role_persona_finished_at'] = 'skipped'
+    return params
+
+
+
+
+def process_metrics_task(params, task_key, model_class):
+    """
+        通用指标处理逻辑（带异常容错）
+        """
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params[f'metrics_{task_key}_started_at'] = datetime.now()
+
+    if params.get(f'metrics_{task_key}'):
+        try:
+            elastic_url = config.get('ES_URL')
+            is_https = urlparse(elastic_url).scheme == 'https'
+            es_client = Elasticsearch(
+                elastic_url, use_ssl=is_https, verify_certs=False,
+                connection_class=RequestsHttpConnection,
+                timeout=180, max_retries=3, retry_on_timeout=True
+            )
+
+            out_index = params[f'model_{task_key}_index']
+            from_date = params.get('from-date') or config.get('METRICS_FROM_DATE')
+            end_date = params.get('to-date') or datetime.now().strftime('%Y-%m-%d')
+
+            metrics_cfg = {
+                'url': elastic_url,
+                'params': {
+                    'repo_index': params['project_repo_index'],
+                    'git_index': params['project_git_index'],
+                    'issue_index': params['project_issues_index'],
+                    'pr_index': params['project_pulls_index'],
+                    'issue_comments_index': params['project_issues2_index'],
+                    'pr_comments_index': params['project_pulls2_index'],
+                    'contributors_index': params['project_contributors_index'],
+                    'release_index': params['project_release_index'],
+                    'out_index': out_index,
+                    'from_date': from_date,
+                    'end_date': end_date,
+                    'level': params['level'],
+                    'community': project_key,
+                    'source': params['domain_name'],
+                    'json_file': params['metrics_data_path'],
+                    'contributors_enriched_index': params['project_contributors_enriched_index'],
+                    'custom_fields': {
+                        'period': params['period'],
+                    }
+
+                }
+            }
+
+            params[f'metrics_{task_key}_params'] = metrics_cfg
+
+            model_inst = model_class(**metrics_cfg['params'])
+            model_inst.metrics_model_metrics(metrics_cfg['url'])
+
+
+            if params['level'] == 'community' and params.get('refresh_sub_repos'):
+                tools.check_sub_repos_metrics(
+                    es_client, out_index, params['project_types'],
+                    {f'metrics_{task_key}': True, 'from-date': from_date, 'to-date': end_date}
+                )
+
+            params[f'metrics_{task_key}_finished_at'] = datetime.now()
+            params[f'metrics_{task_key}_status'] = 'success'
+
+        except Exception as e:
+            params[f'metrics_{task_key}_finished_at'] = datetime.now()
+            params[f'metrics_{task_key}_status'] = 'failed'
+            params[f'metrics_{task_key}_error'] = str(e)
+    else:
+        params[f'metrics_{task_key}_finished_at'] = 'skipped'
+
+    return params
+
+
+@task(name="etl_v1.metrics.collaboration_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_collaboration_quality(*args, **kwargs):
+    return process_metrics_task(args[0], 'collaboration_quality', CollaborationQualityMetricsModel)
+
+@task(name="etl_v1.metrics.response_timeliness", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_response_timeliness(*args, **kwargs):
+    return process_metrics_task(args[0], 'response_timeliness', ResponseTimelinessMetricsModel)
+
+@task(name="etl_v1.metrics.community_popularity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_community_popularity(*args, **kwargs):
+    return process_metrics_task(args[0], 'community_popularity', CommunityPopularityMetricsModel)
+
+@task(name="etl_v1.metrics.contribution_activity", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_contribution_activity(*args, **kwargs):
+    return process_metrics_task(args[0], 'contribution_activity', ContributionActivityMetricsModel)
+
+@task(name="etl_v1.metrics.developer_base", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_developer_base(*args, **kwargs):
+    return process_metrics_task(args[0], 'developer_base', DeveloperBaseMetricsModel)
+
+@task(name="etl_v1.metrics.organizational_governance", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_organizational_governance(*args, **kwargs):
+    return process_metrics_task(args[0], 'organizational_governance', OrganizationalGovernanceMetricsModel)
+
+@task(name="etl_v1.metrics.personal_governance", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_personal_governance(*args, **kwargs):
+    return process_metrics_task(args[0], 'personal_governance', PersonalGovernanceMetricsModel)
