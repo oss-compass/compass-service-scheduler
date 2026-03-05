@@ -871,6 +871,9 @@ def contributors_refresh(*args, **kwargs):
             'contributors_org_index': 'contributor_org',
             'organizations_index': 'organizations',
             'bots_index': 'bots',
+            'custom_fields': {
+                'period': params['period'],
+            },
             'company': None
         }
         params["contributors_refresh_params"] = metrics_cfg
