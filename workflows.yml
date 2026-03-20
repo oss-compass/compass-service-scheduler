@@ -32,6 +32,19 @@ insight.ETL_V1:
           - etl_v1.metrics.developer_base
           - etl_v1.metrics.organizational_governance
           - etl_v1.metrics.personal_governance
+          - etl_v1.metrics.developer_attraction
+          - etl_v1.metrics.developer_promotion
+          - etl_v1.metrics.participation_tier
+          - etl_v1.metrics.core_retention
+          - etl_v1.metrics.core_loss
+          - etl_v1.metrics.core_churn
+          - etl_v1.metrics.code_review_quality
+          - etl_v1.metrics.development_document_quality
+          - etl_v1.metrics.trusted_build
+          - etl_v1.metrics.maintenance_management
+          - etl_v1.metrics.release_quality
+          - etl_v1.metrics.legal_compliance
+          - etl_v1.metrics.security_management
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v1
@@ -88,6 +101,13 @@ insight.ETL_V1_GROUP:
           - etl_v1.metrics.milestone_persona
           - etl_v1.metrics.role_persona
           - etl_v1.metrics.criticality_score
+          - etl_v1.metrics.collaboration_quality
+          - etl_v1.metrics.response_timeliness
+          - etl_v1.metrics.community_popularity
+          - etl_v1.metrics.contribution_activity
+          - etl_v1.metrics.developer_base
+          - etl_v1.metrics.organizational_governance
+          - etl_v1.metrics.personal_governance
     - etl_v1.finish
     - etl_v1.notify
   queue: analyze_queue_v2

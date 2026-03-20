@@ -33,15 +33,31 @@ from compass_model.contributor.productivity.role_persona_metrics_model import Ro
 from compass_model.software_artifact.robustness.criticality_score_metrics_model import CriticalityScoreMetricsModel 
 from compass_model.software_artifact.robustness.scorecard_metrics_model import ScorecardMetricsModel 
 
-from compass_model_v2.collaboration_efficiency.collaboration_quality_metrics_model import CollaborationQualityMetricsModel
-from compass_model_v2.collaboration_efficiency.response_timeliness_metrics_model import  ResponseTimelinessMetricsModel
+from compass_model_v2.community_health.collaboration_efficiency.collaboration_quality_metrics_model import CollaborationQualityMetricsModel
+from compass_model_v2.community_health.collaboration_efficiency.response_timeliness_metrics_model import  ResponseTimelinessMetricsModel
 
-from compass_model_v2.community_vitality.community_popularity_metrics_model import CommunityPopularityMetricsModel
-from compass_model_v2.community_vitality.contribution_activity_metrics_model import ContributionActivityMetricsModel
-from compass_model_v2.community_vitality.developer_base_metrics_model import DeveloperBaseMetricsModel
+from compass_model_v2.community_health.community_vitality.community_popularity_metrics_model import CommunityPopularityMetricsModel
+from compass_model_v2.community_health.community_vitality.contribution_activity_metrics_model import ContributionActivityMetricsModel
+from compass_model_v2.community_health.community_vitality.developer_base_metrics_model import DeveloperBaseMetricsModel
 
-from compass_model_v2.development_governance.organizational_governance_metrics_model import OrganizationalGovernanceMetricsModel
-from compass_model_v2.development_governance.personal_governance_metrics_model import PersonalGovernanceMetricsModel
+from compass_model_v2.community_health.development_governance.organizational_governance_metrics_model import OrganizationalGovernanceMetricsModel
+from compass_model_v2.community_health.development_governance.personal_governance_metrics_model import PersonalGovernanceMetricsModel
+
+from compass_model_v2.developer_journey.developer_attraction.developer_attraction_metrics_model import DeveloperAttractionMetricsModel
+from compass_model_v2.developer_journey.developer_growth.developer_promotion_metrics_model import DeveloperPromotionMetricsModel
+from compass_model_v2.developer_journey.developer_growth.participation_tier_metrics_model import  ParticipationTierMetricsModel
+from compass_model_v2.developer_journey.developer_retention.core_retention_metrics_model import CoreRetentionMetricsModel
+from compass_model_v2.developer_journey.developer_retention.core_loss_metrics_model import CoreLossMetricsModel
+from compass_model_v2.developer_journey.developer_retention.core_churn_metrics_model import CoreChurnMetricsModel
+
+from compass_model_v2.supply_chain_security.dev_and_build.code_review_quality_metrics_model import CodeReviewQualityMetricsModel
+from compass_model_v2.supply_chain_security.dev_and_build.development_document_quality_metrics_model import DevelopmentDocumentQualityMetricsModel
+from compass_model_v2.supply_chain_security.dev_and_build.trusted_build_metrics_model import TrustedBuildMetricsModel
+from compass_model_v2.supply_chain_security.release_and_maintenance.maintenance_management_metrics_model import MaintenanceManagementMetricsModel
+from compass_model_v2.supply_chain_security.release_and_maintenance.release_quality_metrics_model import ReleaseQualityMetricsModel
+from compass_model_v2.supply_chain_security.source_management.legal_compliance_metrics_model import LegalComplianceMetricsModel
+from compass_model_v2.supply_chain_security.source_management.security_management_metrics_model import SecurityManagementMetricsMode
+
 
 
 from compass_contributor.contributor_dev_org_repo import ContributorDevOrgRepo
@@ -1595,6 +1611,7 @@ def process_metrics_task(params, task_key, model_class):
                     'community': project_key,
                     'source': params['domain_name'],
                     'json_file': params['metrics_data_path'],
+                    'openchecker_index': params['project_opencheck_index'],
                     'contributors_enriched_index': params['project_contributors_enriched_index'],
                     'custom_fields': {
                         'period': params['period'],
@@ -1655,3 +1672,57 @@ def metrics_organizational_governance(*args, **kwargs):
 @task(name="etl_v1.metrics.personal_governance", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_personal_governance(*args, **kwargs):
     return process_metrics_task(args[0], 'personal_governance', PersonalGovernanceMetricsModel)
+
+
+
+@task(name="etl_v1.metrics.developer_attraction", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_developer_attraction(*args, **kwargs):
+    return process_metrics_task(args[0], 'developer_attraction', DeveloperAttractionMetricsModel)
+
+@task(name="etl_v1.metrics.developer_promotion", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_developer_promotion(*args, **kwargs):
+    return process_metrics_task(args[0], 'developer_promotion', DeveloperPromotionMetricsModel)
+
+@task(name="etl_v1.metrics.participation_tier", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_participation_tier(*args, **kwargs):
+    return process_metrics_task(args[0], 'participation_tier', ParticipationTierMetricsModel)
+
+@task(name="etl_v1.metrics.core_retention", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_core_retention(*args, **kwargs):
+    return process_metrics_task(args[0], 'core_retention', CoreRetentionMetricsModel)
+
+@task(name="etl_v1.metrics.core_loss", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_core_loss(*args, **kwargs):
+    return process_metrics_task(args[0], 'core_loss', CoreLossMetricsModel)
+
+@task(name="etl_v1.metrics.core_churn", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_core_churn(*args, **kwargs):
+    return process_metrics_task(args[0], 'core_churn', CoreChurnMetricsModel)
+
+@task(name="etl_v1.metrics.code_review_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_code_review_quality(*args, **kwargs):
+    return process_metrics_task(args[0], 'code_review_quality', CodeReviewQualityMetricsModel)
+
+@task(name="etl_v1.metrics.development_document_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_development_document_quality(*args, **kwargs):
+    return process_metrics_task(args[0], 'development_document_quality', DevelopmentDocumentQualityMetricsModel)
+
+@task(name="etl_v1.metrics.trusted_build", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_trusted_build(*args, **kwargs):
+    return process_metrics_task(args[0], 'trusted_build', TrustedBuildMetricsModel)
+
+@task(name="etl_v1.metrics.maintenance_management", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_maintenance_management(*args, **kwargs):
+    return process_metrics_task(args[0], 'maintenance_management', MaintenanceManagementMetricsModel)
+
+@task(name="etl_v1.metrics.release_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_release_quality(*args, **kwargs):
+    return process_metrics_task(args[0], 'release_quality', ReleaseQualityMetricsModel)
+
+@task(name="etl_v1.metrics.legal_compliance", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_legal_compliance(*args, **kwargs):
+    return process_metrics_task(args[0], 'legal_compliance', LegalComplianceMetricsModel)
+
+@task(name="etl_v1.metrics.security_management", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def metrics_security_management(*args, **kwargs):
+    return process_metrics_task(args[0], 'security_management', SecurityManagementMetricsMode)
