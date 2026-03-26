@@ -1578,6 +1578,79 @@ def process_metrics_task(params, task_key, model_class):
                     'community': project_key,
                     'source': params['domain_name'],
                     'json_file': params['metrics_data_path'],
+                    'contributors_enriched_index': params['project_contributors_enriched_index'],
+                    'custom_fields': {
+                        'period': params['period'],
+                    }
+
+                }
+            }
+
+            params[f'metrics_{task_key}_params'] = metrics_cfg
+
+            model_inst = model_class(**metrics_cfg['params'])
+            model_inst.metrics_model_metrics(metrics_cfg['url'])
+
+
+            if params['level'] == 'community' and params.get('refresh_sub_repos'):
+                tools.check_sub_repos_metrics(
+                    es_client, out_index, params['project_types'],
+                    {f'metrics_{task_key}': True, 'from-date': from_date, 'to-date': end_date}
+                )
+
+            params[f'metrics_{task_key}_finished_at'] = datetime.now()
+            params[f'metrics_{task_key}_status'] = 'success'
+
+        except Exception as e:
+            params[f'metrics_{task_key}_finished_at'] = datetime.now()
+            params[f'metrics_{task_key}_status'] = 'failed'
+            params[f'metrics_{task_key}_error'] = str(e)
+    else:
+        params[f'metrics_{task_key}_finished_at'] = 'skipped'
+
+    return params
+
+
+def process_opencheck_metrics_task(params, task_key, model_class):
+    """
+        通用指标处理逻辑（带异常容错）
+        """
+    project_key = params['project_key']
+    config_logging(params['debug'], params['project_logs_dir'])
+    params[f'metrics_{task_key}_started_at'] = datetime.now()
+
+    if params.get(f'metrics_{task_key}'):
+        try:
+            elastic_url = config.get('ES_URL')
+            is_https = urlparse(elastic_url).scheme == 'https'
+            es_client = Elasticsearch(
+                elastic_url, use_ssl=is_https, verify_certs=False,
+                connection_class=RequestsHttpConnection,
+                timeout=180, max_retries=3, retry_on_timeout=True
+            )
+
+            out_index = params[f'model_{task_key}_index']
+            from_date = params.get('from-date') or config.get('METRICS_FROM_DATE')
+            end_date = params.get('to-date') or datetime.now().strftime('%Y-%m-%d')
+
+            metrics_cfg = {
+                'url': elastic_url,
+                'params': {
+                    'repo_index': params['project_repo_index'],
+                    'git_index': params['project_git_index'],
+                    'issue_index': params['project_issues_index'],
+                    'pr_index': params['project_pulls_index'],
+                    'issue_comments_index': params['project_issues2_index'],
+                    'pr_comments_index': params['project_pulls2_index'],
+                    'contributors_index': params['project_contributors_index'],
+                    'release_index': params['project_release_index'],
+                    'out_index': out_index,
+                    'from_date': from_date,
+                    'end_date': end_date,
+                    'level': params['level'],
+                    'community': project_key,
+                    'source': params['domain_name'],
+                    'json_file': params['metrics_data_path'],
                     'openchecker_index': params['project_opencheck_index'],
                     'contributors_enriched_index': params['project_contributors_enriched_index'],
                     'custom_fields': {
@@ -1668,28 +1741,28 @@ def metrics_core_churn(*args, **kwargs):
 
 @task(name="etl_v1.metrics.code_review_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_code_review_quality(*args, **kwargs):
-    return process_metrics_task(args[0], 'code_review_quality', CodeReviewQualityMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'code_review_quality', CodeReviewQualityMetricsModel)
 
 @task(name="etl_v1.metrics.development_document_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_development_document_quality(*args, **kwargs):
-    return process_metrics_task(args[0], 'development_document_quality', DevelopmentDocumentQualityMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'development_document_quality', DevelopmentDocumentQualityMetricsModel)
 
 @task(name="etl_v1.metrics.trusted_build", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_trusted_build(*args, **kwargs):
-    return process_metrics_task(args[0], 'trusted_build', TrustedBuildMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'trusted_build', TrustedBuildMetricsModel)
 
 @task(name="etl_v1.metrics.maintenance_management", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_maintenance_management(*args, **kwargs):
-    return process_metrics_task(args[0], 'maintenance_management', MaintenanceManagementMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'maintenance_management', MaintenanceManagementMetricsModel)
 
 @task(name="etl_v1.metrics.release_quality", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_release_quality(*args, **kwargs):
-    return process_metrics_task(args[0], 'release_quality', ReleaseQualityMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'release_quality', ReleaseQualityMetricsModel)
 
 @task(name="etl_v1.metrics.legal_compliance", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_legal_compliance(*args, **kwargs):
-    return process_metrics_task(args[0], 'legal_compliance', LegalComplianceMetricsModel)
+    return process_opencheck_metrics_task(args[0], 'legal_compliance', LegalComplianceMetricsModel)
 
 @task(name="etl_v1.metrics.security_management", acks_late=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def metrics_security_management(*args, **kwargs):
-    return process_metrics_task(args[0], 'security_management', SecurityManagementMetricsMode)
+    return process_opencheck_metrics_task(args[0], 'security_management', SecurityManagementMetricsMode)
