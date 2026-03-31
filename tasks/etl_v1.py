@@ -462,6 +462,26 @@ def setup(*args, **kwargs):
     model_organizational_governance_index = f"{metrics_out_index}_v2_organizational_governance"
     model_personal_governance_index = f"{metrics_out_index}_v2_personal_governance"
 
+    model_developer_attraction_index = f"{metrics_out_index}_v2_developer_attraction"
+    model_developer_promotion_index = f"{metrics_out_index}_v2_developer_promotion"
+    model_participation_tier_index = f"{metrics_out_index}_v2_participation_tier"
+    model_core_retention_index = f"{metrics_out_index}_v2_core_retention"
+    model_core_loss_index = f"{metrics_out_index}_v2_core_loss"
+    model_core_churn_index = f"{metrics_out_index}_v2_core_churn"
+
+
+    model_code_review_quality_index = f"{metrics_out_index}_v2_code_review_quality"
+    model_development_document_quality_index = f"{metrics_out_index}_v2_development_document_quality"
+    model_trusted_build_index = f"{metrics_out_index}_v2_trusted_build"
+    model_maintenance_management_index = f"{metrics_out_index}_v2_maintenance_management"
+    model_release_quality_index = f"{metrics_out_index}_v2_release_quality"
+    model_legal_compliance_index = f"{metrics_out_index}_v2_legal_compliance"
+    model_security_management_index = f"{metrics_out_index}_v2_security_management"
+
+
+
+
+
     
     # opencheck index
     input_opencheck_index = "opencheck_raw"
@@ -693,6 +713,21 @@ def setup(*args, **kwargs):
     params['model_developer_base_index'] = model_developer_base_index
     params['model_organizational_governance_index'] = model_organizational_governance_index
     params['model_personal_governance_index'] = model_personal_governance_index
+
+    params['model_developer_attraction_index'] = model_developer_attraction_index
+    params['model_developer_promotion_index'] = model_developer_promotion_index
+    params['model_participation_tier_index'] = model_participation_tier_index
+    params['model_core_retention_index'] = model_core_retention_index
+    params['model_core_loss_index'] = model_core_loss_index
+    params['model_core_churn_index'] = model_core_churn_index
+
+    params['model_code_review_quality_index'] = model_code_review_quality_index
+    params['model_development_document_quality_index'] = model_development_document_quality_index
+    params['model_trusted_build_index'] = model_trusted_build_index
+    params['model_maintenance_management_index'] = model_maintenance_management_index
+    params['model_release_quality_index'] = model_release_quality_index
+    params['model_legal_compliance_index'] = model_legal_compliance_index
+    params['model_security_management_index'] = model_security_management_index
 
     params['project_opencheck_index'] = input_opencheck_index
  
@@ -1562,6 +1597,9 @@ def process_metrics_task(params, task_key, model_class):
     project_key = params['project_key']
     config_logging(params['debug'], params['project_logs_dir'])
     params[f'metrics_{task_key}_started_at'] = datetime.now()
+
+    task_status = params.get(f'metrics_{task_key}')
+    print(f"[{project_key}] 开始执行指标任务: {task_key},  配置项值: {task_status}")
 
     if params.get(f'metrics_{task_key}'):
         try:
