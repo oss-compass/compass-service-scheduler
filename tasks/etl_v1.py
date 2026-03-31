@@ -188,6 +188,23 @@ def extract(self, *args, **kwargs):
     params['metrics_developer_base'] = bool(payload.get('metrics_developer_base'))
     params['metrics_organizational_governance'] = bool(payload.get('metrics_organizational_governance'))
     params['metrics_personal_governance'] = bool(payload.get('metrics_personal_governance'))
+
+
+    params['metrics_participation_tier'] = bool(payload.get('metrics_participation_tier'))
+    params['metrics_core_churn'] = bool(payload.get('metrics_core_churn'))
+    params['metrics_core_loss'] = bool(payload.get('metrics_core_loss'))
+    params['metrics_core_retention'] = bool(payload.get('metrics_core_retention'))
+    params['metrics_developer_attraction'] = bool(payload.get('metrics_developer_attraction'))
+    params['metrics_developer_promotion'] = bool(payload.get('metrics_developer_promotion'))
+
+    params['metrics_code_review_quality'] = bool(payload.get('metrics_code_review_quality'))
+    params['metrics_development_document_quality'] = bool(payload.get('metrics_development_document_quality'))
+    params['metrics_trusted_build'] = bool(payload.get('metrics_trusted_build'))
+    params['metrics_maintenance_management'] = bool(payload.get('metrics_maintenance_management'))
+    params['metrics_release_quality'] = bool(payload.get('metrics_release_quality'))
+    params['metrics_legal_compliance'] = bool(payload.get('metrics_legal_compliance'))
+    params['metrics_security_management'] = bool(payload.get('metrics_security_management'))
+
     params['custom_metrics'] = bool(payload.get('custom_metrics'))
     params['metrics_param'] = payload.get('metrics_param')
     params['sleep_for_waiting'] = int(payload.get('sleep_for_waiting') or 5)
