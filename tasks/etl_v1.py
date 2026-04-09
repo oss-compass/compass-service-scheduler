@@ -271,7 +271,7 @@ def extract_group(self, *args, **kwargs):
     params['refresh_sub_repos'] = bool(payload.get('refresh_sub_repos')) if payload.get('refresh_sub_repos') != None else True
     params['from-date'] = payload.get('from-date')
     params['to-date'] = payload.get('to-date')
-
+    params['period'] = payload.get('period')
     return params
 
 
